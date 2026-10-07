@@ -1,0 +1,29 @@
+# Secrets
+.env
+*.pem
+*.key
+enroll_secret*
+!enroll_secret.example
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Node
+node_modules/
+dist/
+build/
+
+# Data / logs
+*.log
+*.db
+*.sqlite
+data/
