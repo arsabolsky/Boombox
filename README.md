@@ -8,7 +8,7 @@ proposes a remediation, and a human approves it before the fix script runs on th
 
 ```
 .
-├── endpoint/                 # Everything that runs on monitored hosts
+├── client/                   # Everything that runs on monitored hosts
 │   ├── linux/                # endpoint, installer, remediation runner
 │   └── windows/              # endpoint, installer, remediation runner
 ├── server/                   # Admin server / cluster / cloud
