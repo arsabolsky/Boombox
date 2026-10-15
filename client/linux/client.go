@@ -8,6 +8,7 @@ import (
   "strings"
   "time"
   "strconv"
+  "net/http"
 
   "github.com/joho/godotenv"
 )
@@ -33,16 +34,18 @@ func main() {
 		select {
 		case <-ticker.C:
 			for index, query := range query_list {
+				// Execute the query
 				cmd := exec.Command("osqueryi", "--csv", query)
 				out, err := cmd.Output()
 				if err != nil {
 					fmt.Printf("Query %d failed: %s", index, err)
 				}
 				fmt.Println(index,"\n",string(out))
+
+				// Send to remote
 			}
 		}
 	}
-	//Send to remote
 
 	//Have a socket listening
 	//Accept commands
