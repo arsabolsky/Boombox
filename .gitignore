@@ -27,3 +27,7 @@ build/
 *.db
 *.sqlite
 data/
+
+
+.venv-win/
+test_db.py
