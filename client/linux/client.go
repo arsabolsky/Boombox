@@ -1,16 +1,16 @@
 package main
 
 import (
-  "fmt"
-  "os"
-  "os/exec"
-  "log"
-  "strings"
-  "time"
-  "strconv"
-  "net/http"
+	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"os"
+	"os/exec"
+	"strconv"
+	"time"
 
-  "github.com/joho/godotenv"
+	"github.com/joho/godotenv"
 )
 
 func main() {
@@ -22,9 +22,8 @@ func main() {
 
 	server := os.Getenv("SERVER_HOST")
 	client := &http.Client{
-		Timeout: 10 * time.Second // Don't let unanswered requests hang the program
+		Timeout: 10 * time.Second, // Don't let unanswered requests hang the program
 	}
-	
 
 	// Set up time-based interval
 	interval_seconds, _ := strconv.Atoi(os.Getenv("QUERY_INTERVAL"))
@@ -36,8 +35,7 @@ func main() {
 		select {
 		case <-ticker.C: // Timer reached the set interval
 			// Fetch queries
-			queries = getQueries(client, server)
-			// TODO: split queries into a list, either here or in getQueries
+			queries := getQueries(client, server)
 			for index, query := range query_list {
 				// Execute the query
 				cmd := exec.Command("osqueryi", "--json", query)
@@ -45,55 +43,77 @@ func main() {
 				if err != nil {
 					fmt.Printf("Query %d failed: %s", index, err)
 				}
-				fmt.Println(index,"\n",string(out))
+				fmt.Println(index, "\n", string(out))
 
-				// TODO: query results to server
+				// TODO: send query results to server
 			}
 
-			// TODO: Get and execute remediations
+			remediations := getRemediations(client, server)
+			for index, command := range remediations {
+				// Execute the command
+				cmd := exec.Command(command)
+				_, err := cmd.Output()
+				if err != nil {
+					fmt.Printf("Command %d failed: %s", index, err)
+					// Should failed commands be logged to the server?
+				}
+			}
 		}
 	}
 }
 
-func getQueries(client *http.Client, server string) string {
+type Queries struct {
+	// TODO: Add fields as defined by Andrew or others
+}
+
+func getQueries(client *http.Client, server string) []string {
 	queryPath := server + os.Getenv("QUERIES_PATH")
 	queryRequest, err := http.NewRequest("GET", queryPath, nil)
 	if err != nil {
 		fmt.Println("Error creating query request:", err)
-		return ''
+		return nil
 	}
 
 	authToken := os.Getenv("AUTHTOKEN")
-	queryRequest.Header.Set("Authorization", "Bearer " + authToken)
+	queryRequest.Header.Set("Authorization", "Bearer "+authToken)
 
-	resp, err = client.Do(queryRequest)
+	resp, err := client.Do(queryRequest)
 	if err != nil {
 		fmt.Println("Error fetching queries:", err)
-		return ''
+		return nil
 	}
 	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
 
-	return resp.Body
+	// TODO: split into query list
+
+	return string(body)
 }
 
-func getRemediations(client *http.Client, server string) string {
+type Remediations struct {
+	// TODO: Add fields as defined by Andrew or others
+}
+
+func getRemediations(client *http.Client, server string) []string {
 	remediationPath := server + os.Getenv("REMEDIATIONS_PATH")
 	remediationRequest, err := http.NewRequest("GET", remediationPath, nil)
 	if err != nil {
 		fmt.Println("Error creating query request:", err)
-		return
+		return nil
 	}
 
 	authToken := os.Getenv("AUTHTOKEN")
-	remediationRequest.Header.Set("Authorization", "Bearer " + authtoken)
+	remediationRequest.Header.Set("Authorization", "Bearer "+authToken)
 
-	resp, err = client.Do(remediationRequest)
+	resp, err := client.Do(remediationRequest)
 	if err != nil {
 		fmt.Println("Error fetching remediations:", err)
-		return ''
+		return nil
 	}
 	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
 
-	return resp.Body
+	// TODO: split into remediation list
+
+	return string(body)
 }
-
