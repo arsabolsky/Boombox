@@ -1,0 +1,14 @@
+[Unit]
+Description=Client for the Boombox EDR
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/user/sbin/boombox-client
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
