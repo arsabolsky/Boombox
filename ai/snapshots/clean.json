@@ -1,0 +1,252 @@
+{
+  "client": {
+    "client_id": "clean",
+    "os": "linux",
+    "hostname": "web-01"
+  },
+  "results": [
+    {
+      "name": "processes",
+      "rows": [
+        {
+          "cmdline": "sleep infinity",
+          "name": "sleep",
+          "on_disk": "1",
+          "parent": "0",
+          "path": "/usr/bin/sleep",
+          "pid": "1",
+          "uid": "0",
+          "username": "root"
+        },
+        {
+          "cmdline": "nginx: worker process",
+          "name": "nginx",
+          "on_disk": "-1",
+          "parent": "7",
+          "path": "",
+          "pid": "10",
+          "uid": "33",
+          "username": "www-data"
+        },
+        {
+          "cmdline": "nginx: worker process",
+          "name": "nginx",
+          "on_disk": "-1",
+          "parent": "7",
+          "path": "",
+          "pid": "11",
+          "uid": "33",
+          "username": "www-data"
+        },
+        {
+          "cmdline": "nginx: worker process",
+          "name": "nginx",
+          "on_disk": "-1",
+          "parent": "7",
+          "path": "",
+          "pid": "12",
+          "uid": "33",
+          "username": "www-data"
+        },
+        {
+          "cmdline": "nginx: worker process",
+          "name": "nginx",
+          "on_disk": "-1",
+          "parent": "7",
+          "path": "",
+          "pid": "13",
+          "uid": "33",
+          "username": "www-data"
+        },
+        {
+          "cmdline": "python3 -m http.server 8080",
+          "name": "python3",
+          "on_disk": "1",
+          "parent": "1",
+          "path": "/usr/bin/python3.12",
+          "pid": "14",
+          "uid": "0",
+          "username": "root"
+        },
+        {
+          "cmdline": "nginx: worker process",
+          "name": "nginx",
+          "on_disk": "-1",
+          "parent": "7",
+          "path": "",
+          "pid": "15",
+          "uid": "33",
+          "username": "www-data"
+        },
+        {
+          "cmdline": "nginx: worker process",
+          "name": "nginx",
+          "on_disk": "-1",
+          "parent": "7",
+          "path": "",
+          "pid": "16",
+          "uid": "33",
+          "username": "www-data"
+        },
+        {
+          "cmdline": "nginx: worker process",
+          "name": "nginx",
+          "on_disk": "-1",
+          "parent": "7",
+          "path": "",
+          "pid": "18",
+          "uid": "33",
+          "username": "www-data"
+        },
+        {
+          "cmdline": "nginx: worker process",
+          "name": "nginx",
+          "on_disk": "-1",
+          "parent": "7",
+          "path": "",
+          "pid": "19",
+          "uid": "33",
+          "username": "www-data"
+        },
+        {
+          "cmdline": "python3 /lab/collect.py clean",
+          "name": "python3",
+          "on_disk": "1",
+          "parent": "0",
+          "path": "/usr/bin/python3.12",
+          "pid": "47",
+          "uid": "0",
+          "username": "root"
+        },
+        {
+          "cmdline": "osqueryi --json SELECT p.pid, p.parent, p.name, p.path, p.cmdline, p.uid, (SELECT username FROM users WHERE uid = p.uid LIMIT 1) AS username, p.on_disk FROM processes p",
+          "name": "osqueryi",
+          "on_disk": "1",
+          "parent": "47",
+          "path": "/opt/osquery/bin/osqueryd",
+          "pid": "52",
+          "uid": "0",
+          "username": "root"
+        },
+        {
+          "cmdline": "nginx: master process nginx",
+          "name": "nginx",
+          "on_disk": "1",
+          "parent": "1",
+          "path": "/usr/sbin/nginx",
+          "pid": "7",
+          "uid": "0",
+          "username": "root"
+        },
+        {
+          "cmdline": "nginx: worker process",
+          "name": "nginx",
+          "on_disk": "-1",
+          "parent": "7",
+          "path": "",
+          "pid": "8",
+          "uid": "33",
+          "username": "www-data"
+        },
+        {
+          "cmdline": "nginx: worker process",
+          "name": "nginx",
+          "on_disk": "-1",
+          "parent": "7",
+          "path": "",
+          "pid": "9",
+          "uid": "33",
+          "username": "www-data"
+        }
+      ]
+    },
+    {
+      "name": "network_connections",
+      "rows": []
+    },
+    {
+      "name": "listening_ports",
+      "rows": [
+        {
+          "address": "0.0.0.0",
+          "pid": "14",
+          "port": "8080",
+          "process_cmdline": "python3 -m http.server 8080",
+          "process_name": "python3"
+        },
+        {
+          "address": "0.0.0.0",
+          "pid": "7",
+          "port": "80",
+          "process_cmdline": "nginx: master process nginx",
+          "process_name": "nginx"
+        },
+        {
+          "address": "127.0.0.11",
+          "pid": "-1",
+          "port": "44319",
+          "process_cmdline": "",
+          "process_name": ""
+        },
+        {
+          "address": "::",
+          "pid": "7",
+          "port": "80",
+          "process_cmdline": "nginx: master process nginx",
+          "process_name": "nginx"
+        },
+        {
+          "address": "127.0.0.11",
+          "pid": "-1",
+          "port": "56369",
+          "process_cmdline": "",
+          "process_name": ""
+        }
+      ]
+    },
+    {
+      "name": "cron_jobs",
+      "rows": [
+        {
+          "command": "root test -e /run/systemd/system || SERVICE_MODE=1 /usr/lib/aarch64-linux-gnu/e2fsprogs/e2scrub_all_cron",
+          "path": "/etc/cron.d/e2scrub_all"
+        },
+        {
+          "command": "root test -e /run/systemd/system || SERVICE_MODE=1 /sbin/e2scrub_all -A -r",
+          "path": "/etc/cron.d/e2scrub_all"
+        },
+        {
+          "command": "root /usr/sbin/logrotate /etc/logrotate.conf",
+          "path": "/etc/cron.d/logrotate-nightly"
+        }
+      ]
+    },
+    {
+      "name": "root_users",
+      "rows": [
+        {
+          "directory": "/root",
+          "gid": "0",
+          "shell": "/bin/bash",
+          "uid": "0",
+          "username": "root"
+        }
+      ]
+    },
+    {
+      "name": "ssh_keys",
+      "rows": [
+        {
+          "algorithm": "ssh-ed25519",
+          "comment": "admin@boombox-laptop",
+          "key": "AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl",
+          "key_file": "/root/.ssh/authorized_keys"
+        }
+      ]
+    },
+    {
+      "name": "temp_files",
+      "rows": []
+    }
+  ]
+}

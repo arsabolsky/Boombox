@@ -1,0 +1,22 @@
+{
+  "about": "What the models should catch on the compromised machine. Each item matches a finding when the query name is the same and `contains` appears somewhere in the row. Optional items are also attack-related: flagging them is fine, missing them is fine too.",
+  "should_flag": [
+    {"query": "processes",           "contains": "/dev/tcp/listener/4444",  "what": "reverse shell"},
+    {"query": "network_connections", "contains": "\"remote_port\": \"4444\"", "what": "reverse shell connected to the attacker"},
+    {"query": "processes",           "contains": "stratum+tcp://",          "what": "crypto miner hidden in /tmp"},
+    {"query": "processes",           "contains": "/tmp/.updater",           "what": "program deleted from disk while running"},
+    {"query": "processes",           "contains": "base64 -d | sh",          "what": "encoded command piped into a shell"},
+    {"query": "cron_jobs",           "contains": "203.0.113.7",             "what": "cron job downloads and runs a script"},
+    {"query": "root_users",          "contains": "sysbackup",               "what": "hidden second root account"},
+    {"query": "ssh_keys",            "contains": "hacker@kali",             "what": "attacker's SSH key on root"},
+    {"query": "temp_files",          "contains": "/var/tmp/.bash",          "what": "SUID root shell hidden in a temp folder"},
+
+    {"query": "processes",       "contains": "http.server 31337",      "what": "backdoor web server",            "optional": true},
+    {"query": "listening_ports", "contains": "31337",                  "what": "backdoor port",                  "optional": true},
+    {"query": "processes",       "contains": "\"cmdline\": \"bash -i\"", "what": "the reverse shell's own shell",  "optional": true},
+    {"query": "processes",       "contains": "\"cmdline\": \"sleep 60\"", "what": "child of the miner / encoded loop", "optional": true},
+    {"query": "processes",       "contains": "\"cmdline\": \"sh\"",       "what": "child of the encoded loop",      "optional": true},
+    {"query": "processes",       "contains": "\"cmdline\": \"base64 -d\"", "what": "child of the encoded loop",     "optional": true},
+    {"query": "temp_files",      "contains": "/tmp/.x",                "what": "hidden folder the miner lives in", "optional": true}
+  ]
+}

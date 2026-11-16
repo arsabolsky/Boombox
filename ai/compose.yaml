@@ -1,0 +1,41 @@
+# The AI lab: test machines with osquery, plus a container for running the models.
+#
+#   docker compose up -d --build        start the test machines
+#   ./collect.sh                        save osquery snapshots into snapshots/
+#   docker compose run --rm ai          run the models on the snapshots and score them
+#   docker compose down                 stop everything
+name: boombox-lab
+
+x-machine: &machine
+  build: ./machines
+  volumes:
+    - .:/lab:ro                         # scripts and queries (read-only)
+    - ./snapshots:/lab/snapshots        # collect.py writes here
+
+services:
+  clean:
+    <<: *machine
+    hostname: web-01
+    command: ["bash", "/lab/machines/clean.sh"]
+
+  compromised:
+    <<: *machine
+    hostname: web-02
+    command: ["bash", "/lab/machines/compromised.sh"]
+    depends_on: [listener]
+
+  listener:
+    <<: *machine
+    hostname: attacker
+    command: ["python3", "/lab/machines/listener.py"]
+
+  ai:
+    build: .
+    profiles: ["tools"]                 # only runs when you ask: docker compose run --rm ai
+    working_dir: /ai
+    volumes:
+      - .:/ai
+    env_file:
+      - path: ../.env                   # TYPESAFE_API_KEY, OPENAI_API_KEY
+        required: false
+    command: ["python", "evaluate.py"]
