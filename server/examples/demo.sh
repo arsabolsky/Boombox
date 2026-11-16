@@ -22,7 +22,19 @@ curl -s -X POST "$URL/results" "${ME[@]}" -H "Content-Type: application/json" -d
 import sys, json
 body = json.load(sys.stdin)
 print("verdict:", body["decision"]["verdict"], "| findings:", len(body["decision"]["findings"]))
-r = body["remediation"]
-print("\nSent to the remediations API:", r["id"], "(" + r["shell"] + ")\n")
-print(r["explanation"], "\n")
-print(r["script"])'
+print("fix script being written in the background:", body["remediation_id"])'
+echo "   (see it with: docker compose logs -f api)"
+
+echo "== 3. Mock remediations API: get a script to run"
+SCRIPT=$(curl -s "$URL/mock/remediations/commands" "${ME[@]}" | python3 -c 'import sys, json; print(json.load(sys.stdin)[0]["script"])')
+echo "$SCRIPT"
+
+echo "== 4. Run it the way a client would (save to a file, run the file) and report back"
+FILE=$(mktemp /tmp/boombox-example-XXXX.sh)
+echo "$SCRIPT" > "$FILE"
+OUTPUT=$(bash "$FILE"); CODE=$?
+rm -f "$FILE" /tmp/boombox-example.txt
+echo "$OUTPUT"
+python3 -c 'import json, sys; print(json.dumps({"exit_code": int(sys.argv[1]), "output": sys.argv[2]}))' "$CODE" "$OUTPUT" \
+  | curl -s -X POST "$URL/mock/remediations/commands/example-bash/result" "${ME[@]}" -H "Content-Type: application/json" -d @-
+echo

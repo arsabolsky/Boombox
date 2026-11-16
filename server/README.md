@@ -16,6 +16,7 @@ on the client.
 | `decision.py` | Step 1: is anything bad? Uses TypeSafe Jev, or simple rules when there's no key. |
 | `remediation.py` | Step 2: write a fix script. Uses OpenAI, or a template when there's no key. |
 | `handoff.py` | Step 3: send the script to the remediations API. The one place to change for that API. |
+| `mock_remediations.py` | A stand-in for the remediations API, so client devs can build now. Delete when the real one exists. |
 | `tests/test_api.py` | Tests for the whole flow. |
 | `examples/` | Sample client data, `demo.sh` (runs the whole flow), and harmless example scripts. |
 
@@ -89,15 +90,19 @@ Send the `X-Client-*` headers on every request. Then repeat forever:
 3. `POST /results` with the rows (format below).
 4. Sleep `poll_interval` seconds.
 
-Getting and running fix scripts is a separate loop against the remediations API. The
-scripts are multi-line, so save each one to a file and run the file:
+Getting and running fix scripts is a separate loop against the remediations API. Until
+that exists, use our **mock** of it (same headers):
+
+- `GET /mock/remediations/commands`: scripts to run. Always one harmless example.
+- `POST /mock/remediations/commands/{id}/result` with `{"exit_code": 0, "output": "..."}`.
+
+The scripts are multi-line, so save each one to a file and run the file:
 
 - Linux: `bash /tmp/boombox-<id>.sh`
 - Windows: `powershell -ExecutionPolicy Bypass -File C:\Windows\Temp\boombox-<id>.ps1`
 
-To practise that before the remediations API exists, use the harmless scripts in
-`examples/example-command.sh` and `examples/example-command.ps1`. They print some info and
-write one file to the temp folder.
+The example scripts are `examples/example-command.sh` and `examples/example-command.ps1`.
+They print some info and write one file to the temp folder.
 
 `GET /whoami` shows who the API thinks you are. Use it to check your headers, and later
 your token.
@@ -134,14 +139,14 @@ curl localhost:8000/poll -H "X-Client-Id: linux-vm-1" -H "X-Client-OS: linux"
 - `rows` is exactly what `osqueryi --json` printed; don't convert anything.
 - If a query failed, send `error` instead of `rows`.
 
-The response shows what the server decided and what it sent to the remediations API. It's
-there for testing; **don't run the script from this response**.
+The response comes back right away with what the server decided. If anything looked bad,
+the fix script is written in the background (OpenAI can take a minute or two) and sent to
+the remediations API under `remediation_id`:
 
 ```json
 {
   "decision": {"verdict": "malicious", "findings": [{"query": "processes", "row": {}, "verdict": "malicious", "confidence": 0.9}]},
-  "remediation": {"id": "659b53f3-…", "client_id": "linux-vm-1", "hostname": "ubuntu-client", "os": "linux",
-                  "shell": "bash", "script": "…", "explanation": "…", "findings": []}
+  "remediation_id": "9ae8e385-f776-4da9-b2d4-caec5cc13b1d"
 }
 ```
 
@@ -184,7 +189,7 @@ Not protected yet; the dashboard team decides how.
   fields to `Client` in `schemas.py` and filter there.
 - **Different models:** `decision.py` and `remediation.py` each have one function the API
   calls (`decide` and `make_script`). Swap what's inside; keep the inputs and outputs.
-- **Slow models:** `POST /results` waits for both models before answering. If that gets too
-  slow for the clients, run the pipeline with FastAPI's `BackgroundTasks` instead.
+- **Slow models:** the fix script is written after `/results` answers (`BackgroundTasks` in
+  `main.py`), so a slow model never makes the client wait.
 - **One-time queries** live in memory (`extra_queries` in `main.py`) and reset on restart.
   Move them to the database when there is one.

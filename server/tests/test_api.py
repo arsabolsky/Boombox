@@ -88,7 +88,7 @@ def test_bad_results_are_rejected():
 def test_clean_results_are_benign_and_nothing_is_sent(sent):
     body = api.post("/results", headers=WINDOWS, json=load("results-windows-clean.json")).json()
     assert body["decision"]["verdict"] == "benign"
-    assert body["remediation"] is None
+    assert body["remediation_id"] is None
     assert sent == []
 
 
@@ -98,9 +98,9 @@ def test_bad_results_get_a_multi_line_script_sent_to_the_remediation_api(sent):
     flagged = {(f["query"], f["row"].get("pid")) for f in body["decision"]["findings"]}
     assert flagged == {("processes", "4242"), ("processes", "4300"), ("cron_jobs", None)}
 
-    assert len(sent) == 1
+    assert len(sent) == 1  # written in the background, after the response
     remediation = sent[0]
-    assert remediation.id == body["remediation"]["id"]
+    assert remediation.id == body["remediation_id"]
     assert (remediation.client_id, remediation.hostname, remediation.os) == ("linux-vm-1", "ubuntu-client", "linux")
     assert remediation.shell == "bash"
     assert len(remediation.script.splitlines()) > 5
@@ -145,7 +145,7 @@ def test_handoff_posts_json_when_remediation_api_url_is_set(monkeypatch):
     assert len(calls) == 1
     url, payload = calls[0]
     assert url == "http://remediations:9000/remediations"
-    assert payload["id"] == body["remediation"]["id"]
+    assert payload["id"] == body["remediation_id"]
     assert set(payload) == {"id", "client_id", "hostname", "os", "shell", "script", "explanation", "findings"}
 
 
@@ -157,6 +157,24 @@ def test_handoff_prints_when_no_url_is_set(capsys):
 def test_example_command_scripts_are_valid():
     subprocess.run(["bash", "-n", str(EXAMPLES / "example-command.sh")], check=True)
     assert "Write-Output" in (EXAMPLES / "example-command.ps1").read_text()
+
+
+# ----- mock remediations API (stand-in for the other team's API) -----------------------
+
+
+def test_mock_commands_give_a_harmless_script_for_the_callers_os():
+    linux = api.get("/mock/remediations/commands", headers=LINUX).json()
+    windows = api.get("/mock/remediations/commands", headers=WINDOWS).json()
+    assert [c["shell"] for c in linux] == ["bash"] and [c["shell"] for c in windows] == ["powershell"]
+    assert len(linux[0]["script"].splitlines()) > 5
+    subprocess.run(["bash", "-n"], input=linux[0]["script"], text=True, check=True)
+    assert api.get("/mock/remediations/commands").status_code == 422  # needs identity like everything else
+
+
+def test_mock_result_is_accepted():
+    body = {"exit_code": 0, "output": "Boombox remediation finished"}
+    response = api.post("/mock/remediations/commands/example-bash/result", headers=LINUX, json=body)
+    assert response.json() == {"received": "example-bash", "client_id": "linux-vm-1", "exit_code": 0}
 
 
 # ----- future auth -----------------------------------------------------------------

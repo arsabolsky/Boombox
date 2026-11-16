@@ -110,4 +110,4 @@ class Remediation(BaseModel):
 
 class ResultsResponse(BaseModel):
     decision: Decision
-    remediation: Remediation | None  # what was sent to the remediations API; None when benign
+    remediation_id: str | None  # the fix being written in the background; None when benign
