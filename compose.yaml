@@ -1,0 +1,14 @@
+# Start the API:  docker compose up --build
+# Then open http://localhost:8000/docs
+services:
+  api:
+    build: ./server
+    ports:
+      - "8000:8000"
+    environment:
+      TYPESAFE_API_KEY: ${TYPESAFE_API_KEY:-}   # blank = simple regex rules instead of Jev
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}       # blank = template scripts instead of OpenAI
+      JEV_MODEL: ${JEV_MODEL:-jev-latest}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5}
+      POLL_INTERVAL: ${POLL_INTERVAL:-300}
+      REMEDIATION_API_URL: ${REMEDIATION_API_URL:-}   # blank = print scripts to the console instead

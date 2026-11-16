@@ -1,0 +1,25 @@
+{
+  "results": [
+    {
+      "name": "processes",
+      "rows": [
+        {
+          "pid": "4",
+          "parent": "0",
+          "name": "System",
+          "path": "",
+          "cmdline": "",
+          "on_disk": "-1"
+        },
+        {
+          "pid": "2210",
+          "parent": "1900",
+          "name": "explorer.exe",
+          "path": "C:\\Windows\\explorer.exe",
+          "cmdline": "C:\\Windows\\Explorer.EXE",
+          "on_disk": "1"
+        }
+      ]
+    }
+  ]
+}
