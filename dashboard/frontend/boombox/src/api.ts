@@ -1,4 +1,4 @@
-import type { Remediation } from './types'
+import type { Endpoint, Remediation } from './types'
 
 const BASE = '/api/v1'
 
@@ -201,6 +201,58 @@ export async function listRemediations(): Promise<Remediation[]> {
     state.usingMock = true
     // Return a copy so local approve/deny edits don't mutate the source array.
     return MOCK_ALL.map((r) => ({ ...r }))
+  }
+}
+
+const MOCK_ENDPOINTS: Endpoint[] = [
+  {
+    id: 1, hostname: 'DESKTOP-01', os: 'Windows 11', last_seen: minutesAgo(1),
+    event_count: 212, events_24h: 18, pending_critical: 1, pending_high: 0,
+    pending_medium: 0, pending_low: 0, last_alert_at: minutesAgo(6),
+  },
+  {
+    id: 2, hostname: 'FIN-LAPTOP-07', os: 'Windows 10', last_seen: minutesAgo(2),
+    event_count: 98, events_24h: 9, pending_critical: 0, pending_high: 1,
+    pending_medium: 0, pending_low: 0, last_alert_at: minutesAgo(22),
+  },
+  {
+    id: 3, hostname: 'web-prod-01', os: 'Ubuntu 24.04', last_seen: minutesAgo(0.5),
+    event_count: 340, events_24h: 41, pending_critical: 0, pending_high: 1,
+    pending_medium: 0, pending_low: 0, last_alert_at: minutesAgo(48),
+  },
+  {
+    id: 4, hostname: 'dev-ws-03', os: 'Fedora 41', last_seen: minutesAgo(3),
+    event_count: 57, events_24h: 4, pending_critical: 0, pending_high: 0,
+    pending_medium: 1, pending_low: 0, last_alert_at: minutesAgo(95),
+  },
+  {
+    id: 5, hostname: 'db-prod-01', os: 'Debian 12', last_seen: minutesAgo(9),
+    event_count: 120, events_24h: 2, pending_critical: 0, pending_high: 0,
+    pending_medium: 0, pending_low: 0, last_alert_at: minutesAgo(600),
+  },
+  {
+    id: 6, hostname: 'HR-DESKTOP-02', os: 'Windows 11', last_seen: minutesAgo(60 * 26),
+    event_count: 33, events_24h: 0, pending_critical: 0, pending_high: 0,
+    pending_medium: 0, pending_low: 0, last_alert_at: minutesAgo(60 * 50),
+  },
+  {
+    id: 7, hostname: 'build-runner-02', os: 'Ubuntu 22.04', last_seen: minutesAgo(1),
+    event_count: 410, events_24h: 27, pending_critical: 0, pending_high: 0,
+    pending_medium: 0, pending_low: 0, last_alert_at: minutesAgo(240),
+  },
+  {
+    id: 8, hostname: 'MKT-MAC-04', os: 'macOS 15', last_seen: minutesAgo(4),
+    event_count: 21, events_24h: 1, pending_critical: 0, pending_high: 0,
+    pending_medium: 0, pending_low: 0, last_alert_at: null,
+  },
+]
+
+export async function listEndpoints(): Promise<Endpoint[]> {
+  try {
+    return await tryFetch<Endpoint[]>(`${BASE}/endpoints`)
+  } catch {
+    state.usingMock = true
+    return MOCK_ENDPOINTS.map((e) => ({ ...e }))
   }
 }
 

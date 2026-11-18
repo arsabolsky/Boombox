@@ -1,18 +1,20 @@
 import { reactive } from 'vue'
-import type { Remediation } from './types'
+import type { Endpoint, Remediation } from './types'
 import {
   approveRemediation,
   denyRemediation,
+  listEndpoints,
   listRemediations,
   state as apiState,
 } from './api'
 
 /**
- * Shared app state. All three pages (Review, Backlog, Dashboard) read from the
+ * Shared app state. All pages read from the
  * same list so an approval on one page shows up immediately on the others.
  */
 export const store = reactive({
   items: [] as Remediation[],
+  endpoints: [] as Endpoint[],
   loading: true,
   busy: false,
   error: null as string | null,
@@ -26,7 +28,9 @@ export async function load() {
   store.loading = true
   store.error = null
   try {
-    store.items = await listRemediations()
+    const [items, endpoints] = await Promise.all([listRemediations(), listEndpoints()])
+    store.items = items
+    store.endpoints = endpoints
     store.usingMock = apiState.usingMock
     store.lastLoaded = new Date()
   } catch (e) {
