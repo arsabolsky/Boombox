@@ -1,0 +1,13 @@
+[project]
+name = "boombox-server"
+version = "0.1.0"
+description = "Boombox backend API"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi[standard]>=0.115,<1",
+    "openai>=2,<3",
+    "httpx>=0.27,<1",
+]
+
+[tool.uv]
+package = false  # an app, not a library to publish

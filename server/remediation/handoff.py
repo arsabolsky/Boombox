@@ -1,6 +1,6 @@
-"""Where finished remediation scripts go: the remediations API (another team's service).
+"""Where finished remediation scripts go: the remediations service (Aiden).
 
-Our API's job ends here. The remediations API decides what happens next: showing the
+Our API's job ends here. The remediations service decides what happens next: showing the
 script to a person, approval, sending it to the client, and keeping track of it.
 
 How it works today:
@@ -9,7 +9,7 @@ How it works today:
   - If it isn't set, the remediation is printed to the server's console instead,
     so you can see what would have been sent: `docker compose logs -f api`.
 
-If the remediations API wants something different (another URL, another JSON shape,
+If the remediations service wants something different (another URL, another JSON shape,
 an API key, a database insert...), change only this function.
 """
 

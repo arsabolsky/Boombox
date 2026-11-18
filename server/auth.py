@@ -21,7 +21,7 @@ When real authentication is ready, rewrite `current_client` to:
 Nothing else has to change: every endpoint that uses Depends(current_client) is then
 protected, and still only sees that client's data. If the auth system knows more about
 a client (its group, what it may run, ...), add those fields to `Client` in schemas.py
-and use them in `queries_for` (queries.py).
+and use them in `queries_for` (ingest/queries.py).
 """
 
 from typing import Literal

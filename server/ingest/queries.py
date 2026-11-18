@@ -7,6 +7,11 @@ Test a query on a real machine first with:  osqueryi --json "<sql>"
 
 from schemas import Client, Query
 
+# One-time custom queries, added by the admin endpoint (api/routes.py) and handed out
+# once on the client's next poll (ingest/routes.py). Kept in memory, so they reset
+# when the server restarts.
+extra_queries: dict[str, list[Query]] = {}  # client_id -> queries not yet sent
+
 LINUX = [
     Query(
         name="processes",

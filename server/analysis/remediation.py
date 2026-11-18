@@ -2,8 +2,8 @@
 
 Uses OpenAI (needs OPENAI_API_KEY).
 
-The script is only a proposal. main.py hands it to the remediations API
-(handoff.py), which takes care of approval and running it on the client.
+The script is only a proposal. ingest/routes.py hands it to the remediations service
+(remediation/handoff.py), which takes care of approval and running it on the client.
 """
 
 import json

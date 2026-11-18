@@ -1,3 +1,4 @@
 # API
 
-REST API for the dashboard: list alerts/analytics, and accept / deny / modify remediation suggestions.
+Endpoints for the admin dashboard. `routes.py` has `POST /clients/{client_id}/queries`,
+which sends a one-time custom query to one client on its next poll.
