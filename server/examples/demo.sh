@@ -8,9 +8,6 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 # Who we are. Later, real auth replaces these headers with a token.
 ME=(-H "X-Client-Id: linux-vm-1" -H "X-Client-OS: linux" -H "X-Client-Hostname: ubuntu-client")
 
-echo "== 0. Who does the API think I am?"
-curl -s "$URL/whoami" "${ME[@]}" | python3 -m json.tool
-
 echo "== 1. Poll: what should I run?"
 curl -s "$URL/poll" "${ME[@]}" | python3 -c '
 import sys, json

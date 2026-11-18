@@ -12,7 +12,7 @@
 
 ### AI Models - Andrew
 - [x] Create API format for clients to call to send data to (HTTP POST): see [server/README.md](../server/README.md)
-- [x] Set up the decision model (TypeSafe Jev) + remediation model (OpenAI), with no-key fallbacks for testing
+- [x] Set up the decision model (TypeSafe Jev) + remediation model (OpenAI)
 - [ ] Get Jev and OpenAI keys and test with real client data
 
 ### Database - Aiden

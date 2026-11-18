@@ -1,9 +1,0 @@
-{
-  "processes": "SELECT p.pid, p.parent, p.name, p.path, p.cmdline, p.uid, (SELECT username FROM users WHERE uid = p.uid LIMIT 1) AS username, p.on_disk FROM processes p",
-  "network_connections": "SELECT DISTINCT s.pid, p.name AS process_name, p.cmdline AS process_cmdline, s.remote_address, s.remote_port, s.state FROM process_open_sockets s LEFT JOIN processes p USING (pid) WHERE s.remote_address NOT IN ('', '0.0.0.0', '::', '127.0.0.1', '::1')",
-  "listening_ports": "SELECT DISTINCT l.pid, p.name AS process_name, p.cmdline AS process_cmdline, l.port, l.address FROM listening_ports l LEFT JOIN processes p USING (pid) WHERE l.port != 0",
-  "cron_jobs": "SELECT command, path FROM crontab",
-  "root_users": "SELECT uid, gid, username, shell, directory FROM users WHERE uid = 0",
-  "ssh_keys": "SELECT DISTINCT k.key_file, k.algorithm, k.comment, k.key FROM users u JOIN authorized_keys k ON k.uid = u.uid",
-  "temp_files": "SELECT path, mode, uid, size, type FROM file WHERE directory IN ('/tmp', '/var/tmp', '/dev/shm')"
-}

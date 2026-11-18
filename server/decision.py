@@ -1,15 +1,11 @@
 """Step 1 of the pipeline: decide whether anything in the results looks bad.
 
-Uses TypeSafe Jev when TYPESAFE_API_KEY is set. Jev doesn't write text; it
+Uses TypeSafe Jev (needs TYPESAFE_API_KEY). Jev doesn't write text; it
 answers questions by picking a label and giving a confidence. We ask one
 question per row: is it benign, suspicious, or malicious?
-
-Without a key, a few simple regex rules are used instead, so the API still
-works for testing.
 """
 
 import os
-import re
 
 import httpx
 
@@ -34,7 +30,7 @@ def decide(client: Client, results: list[QueryResult]) -> Decision:
         rows = result.rows
         for start in range(0, len(rows), ROWS_PER_REQUEST):
             chunk = rows[start : start + ROWS_PER_REQUEST]
-            answers = ask_jev(client, result.name, chunk) if os.getenv("TYPESAFE_API_KEY") else ask_rules(chunk)
+            answers = ask_jev(client, result.name, chunk)
             for row, (label, confidence) in zip(chunk, answers):
                 if label != "benign" and confidence >= MIN_CONFIDENCE:
                     findings.append(Finding(query=result.name, row=row, verdict=label, confidence=confidence))
@@ -76,21 +72,3 @@ def ask_jev(client: Client, query_name: str, rows: list[dict]) -> list[tuple[str
     response.raise_for_status()
     answers = response.json()["answers"]
     return [(answers[f"row_{i}"]["choice"], answers[f"row_{i}"]["confidence"]) for i in range(len(rows))]
-
-
-# ----- Fallback when there is no Jev key -----------------------------------------
-
-RULES = [
-    ("malicious", re.compile(r"/dev/tcp/|bash -i|nc .*-e |mimikatz|xmrig|stratum\+tcp://", re.I)),
-    ("malicious", re.compile(r"(curl|wget)[^|]*\|\s*(ba)?sh|powershell.*\s-enc", re.I)),
-    ("suspicious", re.compile(r"(^|\s|')(/tmp|/dev/shm|/var/tmp)/|\\temp\\|\\users\\public\\", re.I)),
-]
-
-
-def ask_rules(rows: list[dict]) -> list[tuple[str, float]]:
-    answers = []
-    for row in rows:
-        text = " ".join(str(value) for value in row.values())
-        label = next((label for label, pattern in RULES if pattern.search(text)), "benign")
-        answers.append((label, 0.9 if label == "malicious" else 0.6))
-    return answers

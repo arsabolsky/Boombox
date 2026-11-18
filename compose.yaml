@@ -6,8 +6,8 @@ services:
     ports:
       - "8000:8000"
     environment:
-      TYPESAFE_API_KEY: ${TYPESAFE_API_KEY:-}   # blank = simple regex rules instead of Jev
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}       # blank = template scripts instead of OpenAI
+      TYPESAFE_API_KEY: ${TYPESAFE_API_KEY:?set TYPESAFE_API_KEY in .env}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?set OPENAI_API_KEY in .env}
       JEV_MODEL: ${JEV_MODEL:-jev-latest}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5}
       POLL_INTERVAL: ${POLL_INTERVAL:-300}
