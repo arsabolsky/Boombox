@@ -1,3 +1,5 @@
 # Analysis
 
-Sends stored reports to the large LLM and saves its analysis plus a proposed Linux (bash) or Windows (PowerShell) remediation script.
+The remediation model. `remediation.py` sends the findings to OpenAI and gets back one
+multi-line fix script (bash for Linux, PowerShell for Windows) plus an explanation for the
+person approving it.

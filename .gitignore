@@ -2,8 +2,6 @@
 .env
 *.pem
 *.key
-enroll_secret*
-!enroll_secret.example
 
 # OS / editor
 .DS_Store
@@ -28,5 +26,5 @@ build/
 *.sqlite
 data/
 
-# Local AI lab (not shared)
+# Local experiments (not shared)
 ai/

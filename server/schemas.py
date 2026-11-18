@@ -93,9 +93,9 @@ class Decision(BaseModel):
 
 
 class Remediation(BaseModel):
-    """A proposed fix, sent to the remediations API (see handoff.py).
+    """A proposed fix, sent to the remediations service (see remediation/handoff.py).
 
-    Approving it and getting it to the client is the remediations API's job.
+    Approving it and getting it to the client is the remediations service's job.
     """
 
     id: str

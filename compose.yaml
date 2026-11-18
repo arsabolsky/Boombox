@@ -11,4 +11,4 @@ services:
       JEV_MODEL: ${JEV_MODEL:-jev-latest}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5}
       POLL_INTERVAL: ${POLL_INTERVAL:-300}
-      REMEDIATION_API_URL: ${REMEDIATION_API_URL:-}   # blank = print scripts to the console instead
+      REMEDIATION_API_URL: ${REMEDIATION_API_URL:-}   # blank = print scripts in the logs instead
