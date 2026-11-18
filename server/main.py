@@ -95,12 +95,6 @@ def write_and_send_fix(remediation_id: str, client: Client, findings: list[Findi
     send_to_remediation_api(remediation)
 
 
-@app.get("/whoami", response_model=Client, tags=["testing"])
-def whoami(client: Client = Depends(current_client)):
-    """Shows who the API thinks you are. Use it to check your headers (later: your token)."""
-    return client
-
-
 # ----- Admin endpoints -------------------------------------------------------------
 # Not protected yet; the dashboard team decides how.
 

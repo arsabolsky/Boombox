@@ -13,11 +13,10 @@ on the client.
 | `auth.py` | Works out which client is calling. The one place to change for real authentication. |
 | `schemas.py` | The JSON shapes going in and out. |
 | `queries.py` | The osquery queries clients run. Edit this to collect something new. |
-| `decision.py` | Step 1: is anything bad? Uses TypeSafe Jev, or simple rules when there's no key. |
-| `remediation.py` | Step 2: write a fix script. Uses OpenAI, or a template when there's no key. |
+| `decision.py` | Step 1: is anything bad? Uses TypeSafe Jev. |
+| `remediation.py` | Step 2: write a fix script. Uses OpenAI. |
 | `handoff.py` | Step 3: send the script to the remediations API. The one place to change for that API. |
 | `mock_remediations.py` | A stand-in for the remediations API, so client devs can build now. Delete when the real one exists. |
-| `tests/test_api.py` | Tests for the whole flow. |
 | `examples/` | Sample client data, `demo.sh` (runs the whole flow), and harmless example scripts. |
 
 The other folders (`ingest/`, `triage/`, ...) are the original placeholders from the repo
@@ -29,11 +28,9 @@ skeleton. This code doesn't use them.
 docker compose up --build              # from the repo root
 open http://localhost:8000/docs        # Swagger UI: try every endpoint from the browser
 server/examples/demo.sh                # or watch the whole flow in the terminal
-docker compose run --rm api pytest     # run the tests
 ```
 
-Without API keys, the server uses built-in rules and template scripts, so you can build
-and test against it for free. Settings go in a `.env` file in the repo root (copy
+Both API keys are required. Settings go in a `.env` file in the repo root (copy
 `.env.example`):
 
 ```
@@ -103,9 +100,6 @@ The scripts are multi-line, so save each one to a file and run the file:
 
 The example scripts are `examples/example-command.sh` and `examples/example-command.ps1`.
 They print some info and write one file to the temp folder.
-
-`GET /whoami` shows who the API thinks you are. Use it to check your headers, and later
-your token.
 
 ```bash
 curl localhost:8000/poll -H "X-Client-Id: linux-vm-1" -H "X-Client-OS: linux"
@@ -193,3 +187,26 @@ Not protected yet; the dashboard team decides how.
   `main.py`), so a slow model never makes the client wait.
 - **One-time queries** live in memory (`extra_queries` in `main.py`) and reset on restart.
   Move them to the database when there is one.
+
+## Decisions we made
+
+- **Remediation is fully separate.** Our API never sends scripts to clients. It writes the script and hands
+  it off. Approval, delivery and tracking belong to the remediations API.
+- **Authentication can be added in one place.** Client endpoints get the caller from `current_client()` in
+  `auth.py` and only return that client's data. Today it trusts the `X-Client-*` headers. Later it will check
+  a token instead, and no endpoint changes.
+- **Identity is never in the URL or the request body.** A client can't claim to be another machine, so it
+  stays safe once auth exists.
+- **Remediations are multi-line scripts**, with a comment above each step. The client saves each one to a
+  file and runs the file.
+- **No database, queue or logging of remediations.** The only state is one-time queries, kept in memory.
+- **Each model sits behind one function** (`decide`, `make_script`). Either can be swapped without touching
+  the rest.
+
+## Open items
+
+- [ ] **Queries untested on real machines.** Kade and Mateo should run each query in `queries.py` with
+      `osqueryi`, especially the Windows ones.
+- [ ] **Handoff format to agree.** The remediations team needs to agree to `POST /remediations` with the
+      JSON shown above, or say what they want instead (change only `handoff.py`).
+- [ ] **Auth design pending.** Whoever builds auth rewrites `current_client()` in `auth.py`.

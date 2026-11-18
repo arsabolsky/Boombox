@@ -27,3 +27,6 @@ build/
 *.db
 *.sqlite
 data/
+
+# Local AI lab (not shared)
+ai/
