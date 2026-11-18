@@ -13,3 +13,18 @@ export interface Remediation {
   reviewed_at: string | null
   reviewed_by: string | null
 }
+
+/** A monitored client host, with counts used to judge its health. */
+export interface Endpoint {
+  id: number
+  hostname: string
+  os: string | null
+  last_seen: string | null
+  event_count: number
+  events_24h: number
+  pending_critical: number
+  pending_high: number
+  pending_medium: number
+  pending_low: number
+  last_alert_at: string | null
+}

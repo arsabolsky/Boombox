@@ -4,16 +4,19 @@ import { load, store } from './store'
 import ReviewView from './views/ReviewView.vue'
 import BacklogView from './views/BacklogView.vue'
 import DashboardView from './views/DashboardView.vue'
+import ClientsView from './views/ClientsView.vue'
+import { assess } from './health'
 
-type Page = 'review' | 'backlog' | 'dashboard'
+type Page = 'review' | 'backlog' | 'dashboard' | 'clients'
 
 const PAGES: { key: Page; label: string }[] = [
   { key: 'review', label: 'Review' },
   { key: 'backlog', label: 'Backlog' },
   { key: 'dashboard', label: 'Dashboard' },
+  { key: 'clients', label: 'Clients' },
 ]
 
-// Tiny hash router (#/review, #/backlog, #/dashboard) so pages are linkable
+// Tiny hash router (#/review, #/backlog, #/dashboard, #/clients) so pages are linkable
 // and the back button works, without pulling in vue-router.
 function fromHash(): Page {
   const h = window.location.hash.replace(/^#\/?/, '')
@@ -32,10 +35,15 @@ const pendingCount = computed(
   () => store.items.filter((r) => r.status === 'pending_review').length,
 )
 
+const unhealthyCount = computed(
+  () => store.endpoints.filter((e) => assess(e).health !== 'healthy').length,
+)
+
 const SUBTITLES: Record<Page, string> = {
   review: 'Approve or deny proposed fixes for recent alerts',
   backlog: 'Every fix that has been approved or denied',
   dashboard: 'System activity and review metrics',
+  clients: 'Health of every monitored client',
 }
 </script>
 
@@ -61,6 +69,11 @@ const SUBTITLES: Record<Page, string> = {
         >
           {{ p.label }}
           <span v-if="p.key === 'review' && pendingCount" class="nav__badge">{{ pendingCount }}</span>
+          <span
+            v-if="p.key === 'clients' && unhealthyCount"
+            class="nav__badge nav__badge--bad"
+            :title="`${unhealthyCount} clients need attention`"
+          >{{ unhealthyCount }}</span>
         </a>
       </nav>
 
@@ -96,7 +109,8 @@ const SUBTITLES: Record<Page, string> = {
     <main>
       <ReviewView v-if="page === 'review'" />
       <BacklogView v-else-if="page === 'backlog'" />
-      <DashboardView v-else />
+      <DashboardView v-else-if="page === 'dashboard'" />
+      <ClientsView v-else />
     </main>
   </div>
 </template>
@@ -173,6 +187,10 @@ const SUBTITLES: Record<Page, string> = {
   color: var(--status-pending);
   padding: 0 7px;
   border-radius: 999px;
+}
+.nav__badge--bad {
+  background: color-mix(in srgb, var(--sev-critical) 22%, transparent);
+  color: var(--sev-critical);
 }
 .topbar__right {
   margin-left: auto;
