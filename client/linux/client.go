@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -13,14 +15,22 @@ import (
 	"github.com/joho/godotenv"
 )
 
+type Result struct {
+	Name  string          `json:"name"`
+	Rows  json.RawMessage `json:"rows,omitempty"`
+	Error string          `json:"error,omitempty"`
+}
+
 func main() {
-	//Load from ENV: Queries to run, server address
+	//Load from ENV: Query interval, api paths, etc
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal(".env not found")
 	}
 
-	server := os.Getenv("SERVER_HOST")
+	// TODO: Register the client with the server and get an authtoken back
+
+	server := os.Getenv("API_HOST")
 	client := &http.Client{
 		Timeout: 10 * time.Second, // Don't let unanswered requests hang the program
 	}
@@ -31,89 +41,172 @@ func main() {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
-	for {
-		select {
-		case <-ticker.C: // Timer reached the set interval
-			// Fetch queries
-			queries := getQueries(client, server)
-			for index, query := range query_list {
-				// Execute the query
-				cmd := exec.Command("osqueryi", "--json", query)
-				out, err := cmd.Output()
-				if err != nil {
-					fmt.Printf("Query %d failed: %s", index, err)
+	for range ticker.C {
+		// Fetch queries
+		queries := getQueries(client, server)
+		results := []Result{}
+		for _, query := range queries.Queries {
+			// Execute the query
+			cmd := exec.Command("osqueryi", "--json", query.SQL)
+			out, err := cmd.Output()
+			var result Result
+			if err != nil {
+				result = Result{
+					Name:  query.Name,
+					Error: err.Error(),
 				}
-				fmt.Println(index, "\n", string(out))
-
-				// TODO: send query results to server
+			} else {
+				result = Result{
+					Name: query.Name,
+					Rows: out,
+				}
 			}
+			results = append(results, result)
+		}
 
-			remediations := getRemediations(client, server)
-			for index, command := range remediations {
-				// Execute the command
-				cmd := exec.Command(command)
-				_, err := cmd.Output()
-				if err != nil {
-					fmt.Printf("Command %d failed: %s", index, err)
-					// Should failed commands be logged to the server?
-				}
+		sendQueryResults(client, server, results)
+
+		remediations := getRemediations(client, server)
+		for index, remediation := range remediations {
+			// Execute the command
+			cmd := exec.Command("/bin/bash", "-c", remediation.Script)
+			_, err := cmd.Output()
+			if err != nil {
+				fmt.Printf("Command %d failed: %s", index, err)
+				// TODO add failed commands to results
 			}
 		}
+		// TODO Send remediation results to server
+	}
+}
+
+type Results struct {
+	Results []Result `json:"results"`
+}
+
+func sendQueryResults(client *http.Client, server string, results []Result) {
+	resultsPath := server + os.Getenv("RESULTS_PATH")
+	body := Results{Results: results}
+	out, err := json.Marshal(body)
+	if err != nil {
+		fmt.Println("Error parsing results JSON:", err)
+		return
+	}
+	resultsRequest, err := http.NewRequest("POST", resultsPath, bytes.NewReader(out))
+	if err != nil {
+		fmt.Println("Error creating results request:", err)
+		return
+	}
+
+	setHeaders(resultsRequest)
+
+	resp, err := client.Do(resultsRequest)
+	if err != nil {
+		fmt.Println("Error posting query results:", err)
+		return
+	}
+	defer resp.Body.Close()
+	if logHTTPError(resp) {
+		return
 	}
 }
 
 type Queries struct {
-	// TODO: Add fields as defined by Andrew or others
+	Queries []struct {
+		Name string `json:"name"`
+		SQL  string `json:"sql"`
+	} `json:"queries"`
 }
 
-func getQueries(client *http.Client, server string) []string {
+func getQueries(client *http.Client, server string) Queries {
 	queryPath := server + os.Getenv("QUERIES_PATH")
 	queryRequest, err := http.NewRequest("GET", queryPath, nil)
 	if err != nil {
 		fmt.Println("Error creating query request:", err)
-		return nil
+		return Queries{}
 	}
 
-	authToken := os.Getenv("AUTHTOKEN")
-	queryRequest.Header.Set("Authorization", "Bearer "+authToken)
+	setHeaders(queryRequest)
 
 	resp, err := client.Do(queryRequest)
 	if err != nil {
 		fmt.Println("Error fetching queries:", err)
-		return nil
+		return Queries{}
 	}
 	defer resp.Body.Close()
+	if logHTTPError(resp) {
+		return Queries{}
+	}
 	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println("Error reading queries response:", err)
+		return Queries{}
+	}
 
-	// TODO: split into query list
+	var q Queries
+	if err := json.Unmarshal(body, &q); err != nil {
+		fmt.Println("Queries unmarshal error:", err)
+		return Queries{}
+	}
 
-	return string(body)
+	return q
 }
 
-type Remediations struct {
-	// TODO: Add fields as defined by Andrew or others
+type Remediations []struct {
+	ID     string `json:"id"`
+	Shell  string `json:"shell"`
+	Script string `json:"script"`
 }
 
-func getRemediations(client *http.Client, server string) []string {
+func getRemediations(client *http.Client, server string) Remediations {
 	remediationPath := server + os.Getenv("REMEDIATIONS_PATH")
 	remediationRequest, err := http.NewRequest("GET", remediationPath, nil)
 	if err != nil {
-		fmt.Println("Error creating query request:", err)
-		return nil
+		fmt.Println("Error creating remediations request:", err)
+		return Remediations{}
 	}
 
-	authToken := os.Getenv("AUTHTOKEN")
-	remediationRequest.Header.Set("Authorization", "Bearer "+authToken)
+	setHeaders(remediationRequest)
 
 	resp, err := client.Do(remediationRequest)
 	if err != nil {
 		fmt.Println("Error fetching remediations:", err)
-		return nil
+		return Remediations{}
 	}
 	defer resp.Body.Close()
+	if logHTTPError(resp) {
+		return Remediations{}
+	}
 	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println("Error reading remediations response:", err)
+		return Remediations{}
+	}
 
-	// TODO: split into remediation list
+	var r Remediations
+	if err := json.Unmarshal(body, &r); err != nil {
+		fmt.Println("Remediations unmarshal error:", err)
+		return Remediations{}
+	}
 
-	return string(body)
+	return r
+}
+
+func logHTTPError(resp *http.Response) bool {
+	if resp.StatusCode >= http.StatusOK && resp.StatusCode < http.StatusMultipleChoices {
+		return false
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	fmt.Printf("HTTP request failed with status %s: %s\n", resp.Status, body)
+	if err != nil {
+		fmt.Println("Error reading HTTP error response body:", err)
+	}
+	return true
+}
+
+func setHeaders(request *http.Request) {
+	request.Header.Set("Authorization", "Bearer "+os.Getenv("AUTHTOKEN"))
+	request.Header.Set("x-client-os", os.Getenv("CLIENT_OS"))
+	request.Header.Set("x-client-id", "1") // TEMPORARY, WILL JUST USE AUTHTOKEN
 }
