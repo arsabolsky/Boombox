@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -15,7 +16,7 @@ import (
 	"github.com/joho/godotenv"
 )
 
-type Result struct {
+type QueryResult struct {
 	Name  string          `json:"name"`
 	Rows  json.RawMessage `json:"rows,omitempty"`
 	Error string          `json:"error,omitempty"`
@@ -44,19 +45,19 @@ func main() {
 	for range ticker.C {
 		// Fetch queries
 		queries := getQueries(client, server)
-		results := []Result{}
+		results := []QueryResult{}
 		for _, query := range queries.Queries {
 			// Execute the query
 			cmd := exec.Command("osqueryi", "--json", query.SQL)
 			out, err := cmd.Output()
-			var result Result
+			var result QueryResult
 			if err != nil {
-				result = Result{
+				result = QueryResult{
 					Name:  query.Name,
 					Error: err.Error(),
 				}
 			} else {
-				result = Result{
+				result = QueryResult{
 					Name: query.Name,
 					Rows: out,
 				}
@@ -70,22 +71,36 @@ func main() {
 		for index, remediation := range remediations {
 			// Execute the command
 			cmd := exec.Command("/bin/bash", "-c", remediation.Script)
-			_, err := cmd.Output()
+			output, err := cmd.Output()
+			var result CommandResult
 			if err != nil {
 				fmt.Printf("Command %d failed: %s", index, err)
-				// TODO add failed commands to results
+				var exitCode int
+				if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
+					exitCode = exitErr.ExitCode()
+				}
+				result = CommandResult{
+					ExitCode: exitCode,
+					Output:   string(output),
+				}
+			} else {
+				result = CommandResult{
+					ExitCode: 0,
+					Output:   string(output),
+				}
 			}
+
+			sendCommandResults(client, server, result)
 		}
-		// TODO Send remediation results to server
 	}
 }
 
 type Results struct {
-	Results []Result `json:"results"`
+	Results []QueryResult `json:"results"`
 }
 
-func sendQueryResults(client *http.Client, server string, results []Result) {
-	resultsPath := server + os.Getenv("RESULTS_PATH")
+func sendQueryResults(client *http.Client, server string, results []QueryResult) {
+	resultsPath := server + os.Getenv("QRESULTS_PATH")
 	body := Results{Results: results}
 	out, err := json.Marshal(body)
 	if err != nil {
@@ -103,6 +118,37 @@ func sendQueryResults(client *http.Client, server string, results []Result) {
 	resp, err := client.Do(resultsRequest)
 	if err != nil {
 		fmt.Println("Error posting query results:", err)
+		return
+	}
+	defer resp.Body.Close()
+	if logHTTPError(resp) {
+		return
+	}
+}
+
+type CommandResult struct {
+	ExitCode int    `json:"exit_code"`
+	Output   string `json:"output"`
+}
+
+func sendCommandResults(client *http.Client, server string, result CommandResult) {
+	resultsPath := server + os.Getenv("RRESULTS_PATH")
+	out, err := json.Marshal(result)
+	if err != nil {
+		fmt.Println("Error parsing command result:", err)
+		return
+	}
+	resultsRequest, err := http.NewRequest("POST", resultsPath, bytes.NewReader(out))
+	if err != nil {
+		fmt.Println("Error creating results request:", err)
+		return
+	}
+
+	setHeaders(resultsRequest)
+
+	resp, err := client.Do(resultsRequest)
+	if err != nil {
+		fmt.Println("Error posting comand results:", err)
 		return
 	}
 	defer resp.Body.Close()
