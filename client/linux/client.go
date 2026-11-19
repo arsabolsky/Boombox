@@ -255,4 +255,7 @@ func setHeaders(request *http.Request) {
 	request.Header.Set("Authorization", "Bearer "+os.Getenv("AUTHTOKEN"))
 	request.Header.Set("x-client-os", os.Getenv("CLIENT_OS"))
 	request.Header.Set("x-client-id", "1") // TEMPORARY, WILL JUST USE AUTHTOKEN
+	if request.Method == "POST" {
+		request.Header.Set("Content-Type", "application/json")
+	}
 }
