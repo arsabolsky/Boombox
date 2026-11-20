@@ -1,14 +1,68 @@
-# Start the API:  docker compose up --build
-# Then open http://localhost:8000/docs
+# Starts the whole backend:  docker compose up --build
+#
+#   database        PostgreSQL with the schema and sample data   (server/database)
+#   client-api      Python: clients + AI      http://localhost:8080/docs   (server/client-api)
+#   dashboard-api   Go: the dashboard's API   http://localhost:8000/health (server/dashboard-api)
+#   dashboard       Vue: the dashboard website  http://localhost:5173         (dashboard/frontend/boombox)
+#
+# The database starts fresh with sample data the first time. To reset it: docker compose down -v
+
 services:
-  api:
-    build: ./server
-    ports:
-      - "8000:8000"
+  database:
+    image: postgres:16
     environment:
-      TYPESAFE_API_KEY: ${TYPESAFE_API_KEY:?set TYPESAFE_API_KEY in .env}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:?set OPENAI_API_KEY in .env}
+      POSTGRES_USER: boombox
+      POSTGRES_PASSWORD: boombox
+      POSTGRES_DB: boombox
+    ports:
+      - "5432:5432"
+    volumes:
+      - database:/var/lib/postgresql/data
+      - ./server/database/schema.sql:/docker-entrypoint-initdb.d/1-schema.sql:ro
+      - ./server/database/sample_data.sql:/docker-entrypoint-initdb.d/2-sample_data.sql:ro
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "boombox"]
+      interval: 2s
+      retries: 30
+
+  client-api:
+    build: ./server/client-api
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: postgresql://boombox:boombox@database:5432/boombox
+      TYPESAFE_API_KEY: ${TYPESAFE_API_KEY:-}   # blank: POST /api/v1/results answers 503
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       JEV_MODEL: ${JEV_MODEL:-jev-latest}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5}
       POLL_INTERVAL: ${POLL_INTERVAL:-300}
-      REMEDIATION_API_URL: ${REMEDIATION_API_URL:-}   # blank = print scripts in the logs instead
+    depends_on:
+      database:
+        condition: service_healthy
+
+  dashboard-api:
+    build: ./server/dashboard-api
+    ports:
+      - "8000:8000"
+      - "5173:5173"   # the dashboard website (it shares this container's network, see below)
+    environment:
+      DATABASE_URL: postgresql://boombox:boombox@database:5432/boombox
+    depends_on:
+      database:
+        condition: service_healthy
+
+  dashboard:
+    image: node:22
+    working_dir: /app
+    volumes:
+      - ./dashboard/frontend/boombox:/app
+      - /app/node_modules   # keep installed packages inside the container
+    # The website's dev server sends /api calls to localhost:8000. Sharing the Go
+    # container's network makes "localhost:8000" reach the dashboard API.
+    network_mode: service:dashboard-api
+    command: sh -c "npm ci && npm run dev -- --host 0.0.0.0"
+    depends_on:
+      - dashboard-api
+
+volumes:
+  database:
