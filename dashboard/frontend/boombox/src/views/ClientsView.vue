@@ -94,7 +94,7 @@ const mins = (ms: number) => Math.round(ms / 60_000)
         {{ store.endpoints.length ? 'No clients match these filters.' : 'No clients have registered yet.' }}
       </p>
 
-      <div v-for="e in rows" :key="e.id" class="row" :class="`row--${e.health}`">
+      <div v-for="e in rows" :key="e.client_id" class="row" :class="`row--${e.health}`">
         <span>
           <span class="badge" :class="`h--${e.health}`">
             <span aria-hidden="true">{{ ICON[e.health] }}</span> {{ HEALTH_LABEL[e.health] }}
@@ -102,7 +102,7 @@ const mins = (ms: number) => Math.round(ms / 60_000)
         </span>
         <span class="host">
           <span class="host__name mono">{{ e.hostname }}</span>
-          <span class="host__sub">{{ e.os || 'Unknown OS' }} · #{{ e.id }}</span>
+          <span class="host__sub">{{ e.os || 'Unknown OS' }} · {{ e.client_id }}</span>
         </span>
         <span class="col-why why">
           <span v-for="r in e.reasons" :key="r">{{ r }}</span>

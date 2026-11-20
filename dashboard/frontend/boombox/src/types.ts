@@ -16,7 +16,7 @@ export interface Remediation {
 
 /** A monitored client host, with counts used to judge its health. */
 export interface Endpoint {
-  id: number
+  client_id: string
   hostname: string
   os: string | null
   last_seen: string | null
