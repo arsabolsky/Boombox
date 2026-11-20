@@ -1,9 +1,7 @@
 # Dashboard
 
-Web UI for analysts:
+The website where a person reviews the fix scripts the AI writes and approves or denies
+them (Xander). The code is in `frontend/boombox/`. It talks to the dashboard API in
+[server/dashboard-api](../server/dashboard-api/README.md).
 
-- Analytics across endpoints (alerts over time, top hosts, etc.)
-- Alert detail with the LLM's analysis and proposed remediation script
-- **Accept / Deny / Modify** the script before it's sent to the endpoint
-- Auto-Approve switch that will take advantage of LLM-as-Judge?
-- See clients with endpoint? idk
+`docker compose up` from the repo root starts it at http://localhost:5173.

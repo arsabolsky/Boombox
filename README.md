@@ -1,34 +1,36 @@
 # Boombox
 
-An LLM-assisted EDR: osquery on Windows and Linux endpoints ships telemetry to a central
-server, a lightweight model triages it, a larger model analyzes anything suspicious and
-proposes a remediation, and a human approves it before the fix script runs on the endpoint.
+An AI-assisted EDR (endpoint detection and response) proof of concept.
+
+Clients on Windows and Linux machines run osquery queries and send the results to the
+server. A decision model (TypeSafe Jev) flags anything suspicious, a remediation model
+(OpenAI) writes a script to fix it, and a person approves the script on the dashboard
+before the client runs it.
+
+See [docs/README.md](docs/README.md) for how the pieces fit together and who is working on what.
 
 ## Repository layout
 
 ```
 .
-├── client/                   # Everything that runs on monitored hosts
-│   ├── linux/                # endpoint, installer, remediation runner
-│   └── windows/              # endpoint, installer, remediation runner
-├── server/                   # Admin server / cluster / cloud
-│   ├── ingest/               # POST endpoint + queue for osquery TLS logs
-│   ├── triage/               # Lightweight LLM "is this sus?" filter
-│   ├── storage/              # Database schema + "outgest" export script
-│   ├── analysis/             # Big-AI analysis & remediation proposal
-│   ├── remediation/          # Packages approved scripts and forwards them to endpoints
-│   ├── notify/               # Discord / Teams / webhook push notifications
-│   └── api/                  # REST API backing the dashboard
-├── dashboard/                # Web UI: analytics, accept/deny/modify suggestions
-├── docs/                     # Architecture notes and diagrams
-└── .github/                  # GitHub CI crap...idk tbd
+├── client/              # Runs on monitored machines (Linux: Kade, Windows: Mateo)
+├── server/
+│   ├── client-api/      # Python: what clients talk to, plus the AI (Andrew)
+│   ├── dashboard-api/   # Go: what the dashboard talks to (Xander)
+│   └── database/        # PostgreSQL tables and sample data (Aiden)
+├── dashboard/           # Vue website where people approve fixes (Xander)
+└── docs/                # How it all fits together, and the task list
 ```
-
 
 ## Getting started
 
-1. Copy `.env.example` to `.env` and fill in secrets (never commit `.env`).
-2. Stand up the server components (see `server/README.md`).
-3. Install an endpoint agent:
-   - Linux: `sudo endpoint/linux/install.sh`
-   - Windows (admin PowerShell): `endpoint\windows\install.ps1`
+1. Copy `.env.example` to `.env`. Add the AI keys if you have them (never commit `.env`).
+2. From the repo root: `docker compose up --build`
+3. Open:
+   - http://localhost:5173: the dashboard website
+   - http://localhost:8080/docs: the client API, where you can try every endpoint in the browser
+   - http://localhost:8000/health: the dashboard API
+
+The database starts with sample clients and fix scripts. To reset it: `docker compose down -v`.
+
+More detail is in [server/README.md](server/README.md).
