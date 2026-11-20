@@ -1,10 +1,7 @@
 # Dashboard
 
-Web UI where a person reviews the fix scripts the AI writes (Xander, with Aiden).
+The website where a person reviews the fix scripts the AI writes and approves or denies
+them (Xander). The code is in `frontend/boombox/`. It talks to the dashboard API in
+[server/dashboard-api](../server/dashboard-api/README.md).
 
-- Show new fix scripts as they come in, with the AI's explanation and findings
-- Approve or deny each script before it's sent to the client
-- Send a one-time custom query to one client (`POST /clients/{client_id}/queries` on the backend API)
-
-The format of the fix scripts is in
-[server/README.md](../server/README.md#for-the-remediations-service-aiden).
+`docker compose up` from the repo root starts it at http://localhost:5173.

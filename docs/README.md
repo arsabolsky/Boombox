@@ -2,22 +2,35 @@
 
 ```mermaid
 flowchart TD
-    A[Client runs osquery] -->|POST /results| B[Jev: is anything bad?]
+    A[Client runs osquery] -->|POST /results| B[Client API + Jev: is anything bad?]
     B -->|yes| C[OpenAI: write a fix script]
-    C --> D[Remediations service: a person approves it]
-    D -->|approved script| A
+    C --> D[(Database)]
+    D --> E[Dashboard: a person approves or denies]
+    E --> D
+    D -->|approved script, on the next poll| A
 ```
 
-1. Every few minutes, the client asks the server which osquery queries to run (`GET /poll`).
-2. The client runs them and sends back the rows (`POST /results`).
-3. Jev labels each row benign, suspicious or malicious.
-4. If anything is flagged, OpenAI writes one bash or PowerShell script to fix it.
-5. The script goes to the remediations service, where a person approves or denies it on the dashboard.
-6. Approved scripts are sent to the client, which runs them and reports the result.
+1. A new client registers once (`POST /api/v1/clients`) and gets a `client_id`.
+2. Every few minutes, the client polls (`GET /api/v1/poll`) and gets back the osquery queries
+   to run and any approved fix scripts.
+3. The client runs the queries and sends back the rows (`POST /api/v1/results`).
+4. Jev labels each row benign, suspicious or malicious.
+5. If anything is flagged, OpenAI writes one bash or PowerShell script to fix it, and it's
+   saved in the database as "pending review".
+6. A person approves or denies it on the dashboard.
+7. On its next poll, the client gets the approved script, runs it, and reports the result.
 
-The dashboard can also send a one-time custom query to one client.
+The dashboard can also give one client extra queries, which it gets on every poll.
 
-Request and response formats are in [server/README.md](../server/README.md).
+| Part | Language | Port | Folder | Owner |
+|---|---|---|---|---|
+| Client API | Python | 8080 | `server/client-api` | Andrew |
+| Dashboard API | Go | 8000 | `server/dashboard-api` | Xander |
+| Dashboard website | Vue | 5173 | `dashboard/` | Xander |
+| Database | PostgreSQL | 5432 | `server/database` | Aiden |
+| Clients | ? | | `client/` | Kade, Mateo |
+
+The two APIs never call each other. They share the database.
 
 ## Infrastructure
 
@@ -28,28 +41,29 @@ whether they run on his Proxmox (shared over Tailscale) or in the CSRL server ro
 
 ### Linux client - Kade
 - [ ] Learn osquery
-- [ ] Build the poll loop: `GET /poll`, run the queries, `POST /results`
+- [ ] Register, then poll: run the queries and `POST /api/v1/results`
 - [ ] Run approved fix scripts and report the result back
-- [ ] Test the Linux queries in `server/ingest/queries.py` on a real machine
+- [ ] Test the Linux queries in `server/client-api/ingest/queries.py` on a real machine
 
 ### Windows client - Mateo
 - [ ] Same as Kade, for Windows
 
-### Backend API and AI models - Andrew
-- [x] API format for clients (`GET /poll`, `POST /results`)
+### Client API and AI models - Andrew
+- [x] Client API: register, poll, results, script results
 - [x] Decision model (Jev) and remediation model (OpenAI)
-- [x] Custom queries for one client
-- [ ] Test both models with real client data
+- [x] Save fix scripts to the database for review
+- [ ] Test with real client data
 
-### Remediations service - Aiden
-- [ ] Receive fix scripts from the backend API (`POST /remediations`, format in `server/README.md`)
-- [ ] Store them in PostgreSQL
-- [ ] Show new fix scripts on the dashboard as they come in (with Xander)
+### Database - Aiden
+- [x] PostgreSQL tables: clients, events, remediations, client queries
+- [x] Sample data
 
 ### Dashboard - Xander
-- [ ] Browser UI that shows new fix scripts for review
-- [ ] Approve or deny each script
-- [ ] Send approved scripts to clients (with Kade and Mateo)
+- [x] Show new fix scripts for review
+- [x] Approve or deny each script
+- [ ] `POST /api/v1/client-queries`: a query is saved as disabled unless the request sends
+      `"enabled": true` (the original Python API defaulted to enabled)
+- [ ] `GET /api/v1/remediations`: include `client_id` in each item
 
 ### Infrastructure - Ethan
 - [ ] Decide between self-hosting and CSRL

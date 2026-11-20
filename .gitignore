@@ -28,3 +28,5 @@ data/
 
 # Local experiments (not shared)
 ai/
+.venv-win/
+test_db.py
