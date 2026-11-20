@@ -10,7 +10,6 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict
 
 OS = Literal["linux", "windows"]
-Shell = Literal["bash", "powershell"]
 Verdict = Literal["benign", "suspicious", "malicious"]
 
 
@@ -27,11 +26,13 @@ class Client(BaseModel):
 
 
 class RegisterRequest(BaseModel):
+    model_config = ConfigDict(json_schema_extra={"examples": [
+        {"hostname": "ubuntu-01", "os": "linux", "os_version": "Ubuntu 24.04.1 LTS"},
+    ]})
+
     hostname: str
     os: OS
-    os_version: str | None = None
-    agent_version: str | None = None
-    system_information: dict | None = None
+    os_version: str  # the "pretty name", e.g. "Ubuntu 24.04.1 LTS" or "Windows 11 Pro"
 
 
 class RegisterResponse(BaseModel):
@@ -42,35 +43,25 @@ class RegisterResponse(BaseModel):
 
 
 class Query(BaseModel):
-    """An osquery SQL query the client should run."""
+    """An osquery SQL query the client should run. From GET /api/v1/poll/queries."""
+
+    model_config = ConfigDict(json_schema_extra={"examples": [
+        {"name": "processes", "sql": "SELECT pid, parent, name, path, cmdline, uid, on_disk FROM processes"},
+    ]})
 
     name: str  # short id, e.g. "processes"; the client sends it back with the rows
     sql: str
 
 
-class Script(BaseModel):
-    """An approved fix script the client should run."""
+class Remediation(BaseModel):
+    """An approved fix script the client should run. From GET /api/v1/poll/remediations."""
 
-    id: int  # report the result to POST /api/v1/remediations/{id}/result
-    shell: Shell
-    script: str  # multi-line: save it to a file and run the file
+    model_config = ConfigDict(json_schema_extra={"examples": [
+        {"id": 3, "script": "#!/usr/bin/env bash\necho 'Boombox test script'\n"},
+    ]})
 
-
-class PollResponse(BaseModel):
-    model_config = ConfigDict(json_schema_extra={"examples": [{
-        "poll_interval": 300,
-        "queries": [
-            {"name": "processes", "sql": "SELECT pid, parent, name, path, cmdline, uid, on_disk FROM processes"},
-            {"name": "cron_jobs", "sql": "SELECT command, path FROM crontab"},
-        ],
-        "scripts": [
-            {"id": 3, "shell": "bash", "script": "#!/usr/bin/env bash\necho 'Boombox test script'\n"},
-        ],
-    }]})
-
-    poll_interval: int  # seconds to wait before polling again
-    queries: list[Query]  # run all of these, then POST the rows to /api/v1/results
-    scripts: list[Script]  # approved fix scripts: run each, then report the result
+    id: int
+    script: str  # multi-line: bash on Linux, PowerShell on Windows. Save it to a file and run the file
 
 
 # ----- What the client sends back -----------------------------------------------
@@ -98,11 +89,6 @@ class Results(BaseModel):
     }]})
 
     results: list[QueryResult]
-
-
-class ScriptResult(BaseModel):
-    exit_code: int  # 0 means it worked
-    output: str  # what the script printed
 
 
 # ----- What the pipeline produces -----------------------------------------------

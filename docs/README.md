@@ -7,20 +7,20 @@ flowchart TD
     C --> D[(Database)]
     D --> E[Dashboard: a person approves or denies]
     E --> D
-    D -->|approved script, on the next poll| A
+    D -->|GET /poll/remediations| A
 ```
 
 1. A new client registers once (`POST /api/v1/clients`) and gets a `client_id`.
-2. Every few minutes, the client polls (`GET /api/v1/poll`) and gets back the osquery queries
-   to run and any approved fix scripts.
+2. Every few minutes, the client polls for queries to run (`GET /api/v1/poll/queries`).
 3. The client runs the queries and sends back the rows (`POST /api/v1/results`).
 4. Jev labels each row benign, suspicious or malicious.
 5. If anything is flagged, OpenAI writes one bash or PowerShell script to fix it, and it's
    saved in the database as "pending review".
 6. A person approves or denies it on the dashboard.
-7. On its next poll, the client gets the approved script, runs it, and reports the result.
+7. The client polls for approved fix scripts (`GET /api/v1/poll/remediations`) and runs
+   them. Each one is marked executed as it's handed out, so it's only sent once.
 
-The dashboard can also give one client extra queries, which it gets on every poll.
+The dashboard can also give one client extra queries, which it gets every time it polls for queries.
 
 | Part | Language | Port | Folder | Owner |
 |---|---|---|---|---|
@@ -41,15 +41,15 @@ whether they run on his Proxmox (shared over Tailscale) or in the CSRL server ro
 
 ### Linux client - Kade
 - [ ] Learn osquery
-- [ ] Register, then poll: run the queries and `POST /api/v1/results`
-- [ ] Run approved fix scripts and report the result back
+- [ ] Register, then poll for queries: run them and `POST /api/v1/results`
+- [ ] Poll for remediations and run the approved fix scripts
 - [ ] Test the Linux queries in `server/client-api/ingest/queries.py` on a real machine
 
 ### Windows client - Mateo
 - [ ] Same as Kade, for Windows
 
 ### Client API and AI models - Andrew
-- [x] Client API: register, poll, results, script results
+- [x] Client API: register, poll queries, poll remediations, results
 - [x] Decision model (Jev) and remediation model (OpenAI)
 - [x] Save fix scripts to the database for review
 - [ ] Test with real client data

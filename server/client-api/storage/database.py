@@ -299,30 +299,26 @@ def review_remediation(
             return cur.fetchone()
 
 
-def finish_remediation(remediation_id, client_id, status):
-    """Record that a client ran an approved script: status is 'executed' or 'failed'.
+def take_approved_remediations(client_id):
+    """Hand out this client's approved scripts and mark them 'executed' in one step.
 
-    Only works on this client's own remediations, and only once they're approved.
+    Each approved script is returned once: the same UPDATE that returns it also
+    marks it executed, so the client won't get it again.
     """
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
                 UPDATE remediations
-                SET status = %s
-                WHERE id = %s
-                  AND client_id = %s
+                SET status = 'executed'
+                WHERE client_id = %s
                   AND status = 'approved'
-                RETURNING id, status;
+                RETURNING id, proposed_script;
                 """,
-                (
-                    status,
-                    remediation_id,
-                    UUID(str(client_id)),
-                ),
+                (UUID(str(client_id)),),
             )
 
-            return cur.fetchone()
+            return cur.fetchall()
 
 
 # ============================================

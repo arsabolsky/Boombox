@@ -2,8 +2,8 @@
 
 Fix scripts in the database.
 
-- `save.py`: saves each new fix script as "pending review", and finds a client's approved ones.
-- `routes.py`: `POST /api/v1/remediations/{id}/result`, where a client reports what happened
-  when it ran an approved script.
+- `save.py`: saves each new fix script as "pending review", and hands out approved ones.
+- `routes.py`: `GET /api/v1/poll/remediations`, where a client gets its approved fix
+  scripts. Each one is marked executed as it's handed out, so it's sent only once.
 
 Approving and denying happens on the dashboard (`server/dashboard-api`).
