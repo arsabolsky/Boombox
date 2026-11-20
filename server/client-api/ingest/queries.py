@@ -1,11 +1,11 @@
-"""The osquery queries clients run on each poll.
+"""The osquery queries clients get from GET /api/v1/poll/queries.
 
 Every client gets the default list for its OS (below). On top of that, the
 dashboard can give one client extra queries; those live in the database
-(the client_queries table) and are added on every poll while enabled.
+(the client_queries table) and are included every time while enabled.
 
 To collect something new on every machine, add a Query to the right list and
-restart the server. Clients pick it up on their next poll.
+restart the server. Clients get it the next time they poll for queries.
 Test a query on a real machine first with:  osqueryi --json "<sql>"
 """
 

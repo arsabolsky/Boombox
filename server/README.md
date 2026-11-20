@@ -4,7 +4,7 @@ Three parts, each in its own folder and its own Docker container:
 
 | Folder | What it is | Port |
 |---|---|---|
-| [`client-api/`](client-api/README.md) | Python (FastAPI). Clients register, poll, send results and report script results. Runs the AI. | 8080 |
+| [`client-api/`](client-api/README.md) | Python (FastAPI). Clients register, poll for queries and fix scripts, and send results. Runs the AI. | 8080 |
 | [`dashboard-api/`](dashboard-api/README.md) | Go. The dashboard website reads fix scripts and approves or denies them here. | 8000 |
 | [`database/`](database/README.md) | PostgreSQL tables and sample data. Both APIs read and write it. | 5432 |
 

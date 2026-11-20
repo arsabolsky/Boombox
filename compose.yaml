@@ -35,7 +35,6 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       JEV_MODEL: ${JEV_MODEL:-jev-latest}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5}
-      POLL_INTERVAL: ${POLL_INTERVAL:-300}
     depends_on:
       database:
         condition: service_healthy

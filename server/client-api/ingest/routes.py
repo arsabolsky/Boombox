@@ -1,8 +1,8 @@
-"""Client endpoints: register, get work to do, send back results.
+"""Client endpoints: register, get queries to run, send back results.
 
-  1. Client:  POST /api/v1/clients   -> register once, get a client_id
-  2. Client:  GET  /api/v1/poll      -> the osquery queries to run + approved fix scripts
-  3. Client:  POST /api/v1/results   -> the rows from those queries
+  1. Client:  POST /api/v1/clients       -> register once, get a client_id
+  2. Client:  GET  /api/v1/poll/queries  -> the osquery queries to run
+  3. Client:  POST /api/v1/results       -> the rows from those queries
               The server runs the pipeline:
                 triage/decision.py         is anything bad?                 (answers right away)
                 analysis/remediation.py    if so, write a script to fix it  (in the background)
@@ -18,12 +18,10 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 
 from auth import current_client
 from ingest.queries import queries_for
-from remediation.save import approved_scripts, write_and_save_fix
-from schemas import Client, Decision, PollResponse, RegisterRequest, RegisterResponse, Results
+from remediation.save import write_and_save_fix
+from schemas import Client, Decision, Query, RegisterRequest, RegisterResponse, Results
 from storage.database import insert_client, record_client_activity
 from triage.decision import decide
-
-POLL_INTERVAL = int(os.getenv("POLL_INTERVAL", "300"))  # seconds
 
 router = APIRouter(prefix="/api/v1", tags=["client"])
 
@@ -35,25 +33,18 @@ def register(body: RegisterRequest):
         hostname=body.hostname,
         os_name=body.os,
         os_version=body.os_version,
-        agent_version=body.agent_version,
-        system_information=body.system_information,
     )
     return RegisterResponse(client_id=str(client_id))
 
 
-@router.get("/poll", response_model=PollResponse)
-def poll(client: Client = Depends(current_client)):
-    """Called by the client every `poll_interval` seconds: the work to do now.
+@router.get("/poll/queries", response_model=list[Query])
+def poll_queries(client: Client = Depends(current_client)):
+    """Called by the client every few minutes: the osquery queries to run now.
 
-    - queries: run each one with osquery, then POST the rows to /api/v1/results
-    - scripts: fix scripts a person approved; run each, then report the result
+    Run each one, then POST the rows to /api/v1/results.
     """
     record_client_activity(client.client_id, polled=True)
-    return PollResponse(
-        poll_interval=POLL_INTERVAL,
-        queries=queries_for(client),
-        scripts=approved_scripts(client),
-    )
+    return queries_for(client)
 
 
 @router.post("/results", response_model=Decision)
