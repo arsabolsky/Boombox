@@ -29,12 +29,16 @@ func main() {
 		log.Fatal(".env not found")
 	}
 
-	// TODO: Register the client with the server and get an authtoken back
-
 	server := os.Getenv("API_HOST")
 	client := &http.Client{
 		Timeout: 10 * time.Second, // Don't let unanswered requests hang the program
 	}
+
+	authToken := sendRegisterRequest(client, server)
+	if authToken == "" {
+		log.Fatal("Failed to get authentication token")
+	}
+	os.Setenv("AUTHTOKEN", authToken)
 
 	// Set up time-based interval
 	interval_seconds, _ := strconv.Atoi(os.Getenv("QUERY_INTERVAL"))
@@ -93,6 +97,54 @@ func main() {
 			sendCommandResults(client, server, result)
 		}
 	}
+}
+
+type RegisterRequest struct {
+	Hostname  string `json:"hostname"`
+	Os        string `json:"os"`
+	OsVersion string `json:"os_version"`
+}
+
+func sendRegisterRequest(client *http.Client, server string) string {
+	registerPath := server + os.Getenv("REGISTER_PATH")
+	name, err := os.Hostname()
+	if err != nil {
+		fmt.Println("Error getting hostname:", err)
+		return ""
+	}
+	body := RegisterRequest{
+		Hostname:  name,
+		Os:        os.Getenv("CLIENT_OS"),
+		OsVersion: os.Getenv("OS_VERSION"),
+	}
+	out, err := json.Marshal(body)
+	if err != nil {
+		fmt.Println("Error parsing register JSON:", err)
+		return ""
+	}
+	registerRequest, err := http.NewRequest("POST", registerPath, bytes.NewReader(out))
+	if err != nil {
+		fmt.Println("Error creating register request:", err)
+		return ""
+	}
+
+	setHeaders(registerRequest)
+
+	resp, err := client.Do(registerRequest)
+	if err != nil {
+		fmt.Println("Error posting register request:", err)
+		return ""
+	}
+	defer resp.Body.Close()
+	if logHTTPError(resp) {
+		return ""
+	}
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println("Error reading register response:", err)
+		return ""
+	}
+	return string(respBody)
 }
 
 type Results struct {
@@ -252,9 +304,8 @@ func logHTTPError(resp *http.Response) bool {
 }
 
 func setHeaders(request *http.Request) {
-	request.Header.Set("Authorization", "Bearer "+os.Getenv("AUTHTOKEN"))
 	request.Header.Set("x-client-os", os.Getenv("CLIENT_OS"))
-	request.Header.Set("x-client-id", "1") // TEMPORARY, WILL JUST USE AUTHTOKEN
+	request.Header.Set("x-client-id", os.Getenv("AUTHTOKEN"))
 	if request.Method == "POST" {
 		request.Header.Set("Content-Type", "application/json")
 	}
