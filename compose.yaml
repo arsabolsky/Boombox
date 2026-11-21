@@ -45,7 +45,6 @@ services:
     build: ./server/dashboard-api
     ports:
       - "8000:8000"
-      - "80:5173"     # the dashboard website on port 80 (it shares this container's network, see below)
     environment:
       DATABASE_URL: postgresql://boombox:boombox@database:5432/boombox
     depends_on:
@@ -54,15 +53,9 @@ services:
 
   dashboard:
     restart: unless-stopped
-    image: node:22
-    working_dir: /app
-    volumes:
-      - ./dashboard/frontend/boombox:/app
-      - /app/node_modules   # keep installed packages inside the container
-    # The website's dev server sends /api calls to localhost:8000. Sharing the Go
-    # container's network makes "localhost:8000" reach the dashboard API.
-    network_mode: service:dashboard-api
-    command: sh -c "npm ci && npm run dev -- --host 0.0.0.0"
+    build: ./dashboard   # builds the website and serves it with nginx (dashboard/Dockerfile)
+    ports:
+      - "80:80"
     depends_on:
       - dashboard-api
 
