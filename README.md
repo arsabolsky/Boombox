@@ -17,7 +17,7 @@ See [docs/README.md](docs/README.md) for how the pieces fit together and who is 
 ├── server/
 │   ├── client-api/      # Python: what clients talk to, plus the AI (Andrew)
 │   ├── dashboard-api/   # Go: what the dashboard talks to (Xander)
-│   └── database/        # PostgreSQL tables and sample data (Aiden)
+│   └── database/        # PostgreSQL tables (Aiden)
 ├── dashboard/           # Vue website where people approve fixes (Xander)
 └── docs/                # How it all fits together, and the task list
 ```
@@ -27,10 +27,10 @@ See [docs/README.md](docs/README.md) for how the pieces fit together and who is 
 1. Copy `.env.example` to `.env`. Add the AI keys if you have them (never commit `.env`).
 2. From the repo root: `docker compose up --build`
 3. Open:
-   - http://localhost:5173: the dashboard website
+   - http://localhost: the dashboard website
    - http://localhost:8080/docs: the client API, where you can try every endpoint in the browser
    - http://localhost:8000/health: the dashboard API
 
-The database starts with sample clients and fix scripts. To reset it: `docker compose down -v`.
+The database starts empty. To empty it again: `docker compose down -v`.
 
 More detail is in [server/README.md](server/README.md).
