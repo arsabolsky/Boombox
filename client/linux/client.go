@@ -52,6 +52,7 @@ func main() {
 		results := []QueryResult{}
 		for _, query := range queries {
 			// Execute the query
+			fmt.Println("Executing query:", query.Name)
 			cmd := exec.Command("osqueryi", "--json", query.SQL)
 			out, err := cmd.Output()
 			var result QueryResult
@@ -74,6 +75,7 @@ func main() {
 		remediations := getRemediations(client, server)
 		for index, remediation := range remediations {
 			// Execute the command
+			fmt.Println("Executing remediation:", remediation.Script)
 			cmd := exec.Command("/bin/bash", "-c", remediation.Script)
 			output, err := cmd.Output()
 			var result CommandResult
@@ -258,8 +260,7 @@ func getQueries(client *http.Client, server string) Queries {
 }
 
 type Remediations []struct {
-	ID     string `json:"id"`
-	Shell  string `json:"shell"`
+	ID     int    `json:"id"`
 	Script string `json:"script"`
 }
 
