@@ -18,6 +18,7 @@ wait a few seconds and try again.
 | `08-poll-remediations.sh` | Get approved fix scripts to run | client (8080) |
 | `09-add-query.sh` | Give one client an extra query | dashboard (8000) |
 | `10-watch.sh [seconds]` | Keep showing the saved query results and fix scripts, refreshing every 5 seconds | database |
+| `11-costs.sh` | Totals for all AI calls: count, average time, tokens, estimated cost | client (8080) |
 
 **Tip:** run `./10-watch.sh` in a second terminal while you run the other steps, to watch
 results and fix scripts appear and change status. Only results that looked bad are saved.

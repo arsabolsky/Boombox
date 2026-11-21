@@ -3,6 +3,9 @@ FROM python:3.13-slim
 # uv installs the Python packages listed in pyproject.toml / uv.lock.
 COPY --from=ghcr.io/astral-sh/uv:0.13.7 /uv /bin/uv
 
+# ShellCheck checks the bash fix scripts OpenAI writes (analysis/checks.py).
+RUN apt-get update && apt-get install -y --no-install-recommends shellcheck && rm -rf /var/lib/apt/lists/*
+
 # Show print() output in `docker compose logs` right away.
 ENV PYTHONUNBUFFERED=1
 

@@ -29,7 +29,7 @@ def current_client(
     if row is None:
         raise HTTPException(status_code=401, detail="Unknown client. Register with POST /api/v1/clients first.")
 
-    client_id, hostname, os_name, status = row
+    client_id, hostname, os_name, status, os_version = row
     if status != "active":
         raise HTTPException(status_code=403, detail="This client is disabled.")
 
@@ -37,4 +37,4 @@ def current_client(
     if os_name not in ("linux", "windows"):
         raise HTTPException(status_code=400, detail=f"Client OS must be linux or windows, not {os_name!r}.")
 
-    return Client(client_id=str(client_id), os=os_name, hostname=hostname)
+    return Client(client_id=str(client_id), os=os_name, hostname=hostname, os_version=os_version)

@@ -66,5 +66,5 @@ def results(body: Results, background: BackgroundTasks, client: Client = Depends
     ok_results = [r for r in body.results if r.error is None]
     decision = decide(client, ok_results)
     if decision.verdict != "benign":
-        background.add_task(write_and_save_fix, client, decision)
+        background.add_task(write_and_save_fix, client, decision, ok_results)
     return decision

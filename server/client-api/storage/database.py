@@ -89,7 +89,7 @@ def get_client(client_id):
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT client_id, hostname, os, status
+                SELECT client_id, hostname, os, status, os_version
                 FROM clients
                 WHERE client_id = %s;
                 """,
@@ -130,6 +130,29 @@ def record_client_activity(client_id, polled=False):
 # ============================================
 # EVENT FUNCTIONS
 # ============================================
+
+def open_fingerprints(client_id):
+    """Fingerprints of findings that already have an open fix script for this client.
+
+    "Open" means pending_review or approved (not denied, not executed yet). The
+    fingerprints are stored in each event's raw_data by remediation/save.py.
+    """
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT jsonb_array_elements_text(e.raw_data->'fingerprints')
+                FROM events e
+                JOIN remediations r ON r.event_id = e.id
+                WHERE r.client_id = %s
+                  AND r.status IN ('pending_review', 'approved')
+                  AND e.raw_data ? 'fingerprints';
+                """,
+                (UUID(str(client_id)),),
+            )
+
+            return {row[0] for row in cur.fetchall()}
+
 
 def insert_event(client_id, event_type, raw_data):
     client_id = UUID(str(client_id))

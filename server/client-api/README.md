@@ -20,6 +20,8 @@ http://localhost:8080/docs.
 | `analysis/remediation.py` | Asks OpenAI to write a fix script. |
 | `remediation/save.py` | Saves fix scripts to the database and hands out approved ones. |
 | `remediation/routes.py` | Poll for approved fix scripts. |
+| `analysis/checks.py` | Checks each fix script (bash -n, ShellCheck, read-only variables) before saving it. |
+| `usage.py` | Records the time, tokens and estimated cost of every AI call. |
 | `storage/database.py` | All the SQL (Aiden). |
 
 ## For the clients (Kade, Mateo)
@@ -133,6 +135,14 @@ keys no fix scripts get written, so there's nothing to poll for in step 5.
 ## Good to know
 
 - **The client_id is the only "login".** This is a proof of concept.
+- **One fix per attack.** Clients send the same results on every poll, and one attack shows
+  up as several rows (a process, its children, its connection). Processes are grouped by
+  family (following parent processes up), so while an attack has a fix waiting for review
+  or approved, it doesn't get another one. A different attack gets its own fix right away.
+  Once a fix is denied or sent to the client, anything still there gets a new fix.
+  (`remediation/save.py`)
+- **Costs.** Every AI call prints an `[ai]` line (time, tokens, estimated cost) in the
+  client API log. `tests/11-costs.sh` shows the totals.
 - **Fix scripts run as whatever user the client runs as.** Only approved scripts are handed out.
 - **To change the AI:** `triage/decision.py` and `analysis/remediation.py` each have one
   function (`decide` and `make_script`). Change what's inside; keep the inputs and outputs.

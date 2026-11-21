@@ -36,6 +36,14 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       JEV_MODEL: ${JEV_MODEL:-jev-latest}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5}
+      OPENAI_REASONING_EFFORT: ${OPENAI_REASONING_EFFORT:-low}   # how hard OpenAI thinks: minimal, low, medium, high
+      # Estimated prices for the cost tracking (dollars per million tokens). Check and update.
+      JEV_PRICE_INPUT: ${JEV_PRICE_INPUT:-0.042}
+      JEV_PRICE_OUTPUT: ${JEV_PRICE_OUTPUT:-0}
+      OPENAI_PRICE_INPUT: ${OPENAI_PRICE_INPUT:-1.25}
+      OPENAI_PRICE_OUTPUT: ${OPENAI_PRICE_OUTPUT:-10}
+    volumes:
+      - usage-data:/data   # model-calls.jsonl: time, tokens and cost of every AI call
     depends_on:
       database:
         condition: service_healthy
@@ -61,3 +69,4 @@ services:
 
 volumes:
   database:
+  usage-data:

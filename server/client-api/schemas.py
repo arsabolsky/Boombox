@@ -20,6 +20,7 @@ class Client(BaseModel):
     client_id: str
     os: OS
     hostname: str
+    os_version: str | None = None  # the pretty name, e.g. "Ubuntu 24.04.1 LTS"
 
 
 # ----- Registering a new client --------------------------------------------------
