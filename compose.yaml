@@ -1,11 +1,11 @@
 # Starts the whole backend:  docker compose up --build
 #
-#   database        PostgreSQL with the schema and sample data   (server/database)
+#   database        PostgreSQL with the empty tables               (server/database)
 #   client-api      Python: clients + AI      http://localhost:8080/docs   (server/client-api)
 #   dashboard-api   Go: the dashboard's API   http://localhost:8000/health (server/dashboard-api)
-#   dashboard       Vue: the dashboard website  http://localhost:5173         (dashboard/frontend/boombox)
+#   dashboard       Vue: the dashboard website  http://localhost              (dashboard/frontend/boombox)
 #
-# The database starts fresh with sample data the first time. To reset it: docker compose down -v
+# The database starts empty the first time. To empty it again: docker compose down -v
 
 services:
   database:
@@ -20,7 +20,6 @@ services:
     volumes:
       - database:/var/lib/postgresql/data
       - ./server/database/schema.sql:/docker-entrypoint-initdb.d/1-schema.sql:ro
-      - ./server/database/sample_data.sql:/docker-entrypoint-initdb.d/2-sample_data.sql:ro
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "boombox"]
       interval: 2s
@@ -46,7 +45,7 @@ services:
     build: ./server/dashboard-api
     ports:
       - "8000:8000"
-      - "5173:5173"   # the dashboard website (it shares this container's network, see below)
+      - "80:5173"     # the dashboard website on port 80 (it shares this container's network, see below)
     environment:
       DATABASE_URL: postgresql://boombox:boombox@database:5432/boombox
     depends_on:
