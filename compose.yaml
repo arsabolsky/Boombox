@@ -9,6 +9,7 @@
 
 services:
   database:
+    restart: unless-stopped
     image: postgres:16
     environment:
       POSTGRES_USER: boombox
@@ -26,6 +27,7 @@ services:
       retries: 30
 
   client-api:
+    restart: unless-stopped
     build: ./server/client-api
     ports:
       - "8080:8080"
@@ -40,6 +42,7 @@ services:
         condition: service_healthy
 
   dashboard-api:
+    restart: unless-stopped
     build: ./server/dashboard-api
     ports:
       - "8000:8000"
@@ -51,6 +54,7 @@ services:
         condition: service_healthy
 
   dashboard:
+    restart: unless-stopped
     image: node:22
     working_dir: /app
     volumes:
