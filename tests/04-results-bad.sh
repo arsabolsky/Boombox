@@ -4,7 +4,7 @@
 # "pending_review" in step 5.
 # Needs the AI keys on the server; without them you get HTTP 503. Each run costs a few cents.
 CLIENT_API="${CLIENT_API:-http://localhost:8080}"
-CLIENT_ID="${CLIENT_ID:-33333333-3333-4333-8333-333333333333}"   # sample Linux client
+CLIENT_ID="${CLIENT_ID:?Register first: run ./01-register.sh, then export CLIENT_ID=<the client_id>}"
 
 curl -sS -w '\nHTTP %{http_code}\n' -X POST "$CLIENT_API/api/v1/results" \
   -H "X-Client-Id: $CLIENT_ID" \

@@ -26,7 +26,7 @@ The dashboard can also give one client extra queries, which it gets every time i
 |---|---|---|---|---|
 | Client API | Python | 8080 | `server/client-api` | Andrew |
 | Dashboard API | Go | 8000 | `server/dashboard-api` | Xander |
-| Dashboard website | Vue | 5173 | `dashboard/` | Xander |
+| Dashboard website | Vue | 80 | `dashboard/` | Xander |
 | Database | PostgreSQL | 5432 | `server/database` | Aiden |
 | Clients | ? | | `client/` | Kade, Mateo |
 

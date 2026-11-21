@@ -115,21 +115,20 @@ so save each one to a file and run the file:
 marks it executed, so save it and run it right away. If your client crashes before running it, the
 script is not sent again.
 
-### Testing without the AI or the dashboard
+### Testing
 
-The sample data has clients you can use right away:
+The database starts empty, so register a client first. The `tests/` folder at the repo root
+has a `curl` script for every step (see `tests/README.md`):
 
-| Client | `X-Client-Id` | What it has |
-|---|---|---|
-| Linux, `ubuntu-01` | `33333333-3333-4333-8333-333333333333` | one approved harmless test script |
-| Windows, `LAPTOP-02` | `22222222-2222-4222-8222-222222222222` | one approved harmless test script, plus a custom query |
-
-The test scripts print some info and write `boombox-test.txt` to the temp folder.
-Each one is sent the first time you poll for remediations. To get them back, reset the database:
-`docker compose down -v && docker compose up`.
+1. Register, and save the `client_id`.
+2. Poll for queries.
+3. Send bad results: a fix script is written about a minute later.
+4. Approve it on the dashboard (http://localhost) or with `tests/06-approve.sh <id>`.
+5. Poll for remediations: you get the script, once.
 
 `POST /api/v1/results` needs the AI keys on the server. Without them it answers 503, which
-still tells you your request was in the right format (a wrong format gets a 422).
+still tells you your request was in the right format (a wrong format gets a 422). Without
+keys no fix scripts get written, so there's nothing to poll for in step 5.
 
 ## Good to know
 
