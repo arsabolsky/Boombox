@@ -29,7 +29,6 @@ Reads the repo-root `.env` (or `./.env`); real environment variables win.
 ```bash
 # 1. Database (see server/database/README.md)
 psql -d boombox -f server/database/schema.sql
-psql -d boombox -f server/database/sample_data.sql
 
 # 2. API
 cd server/dashboard-api

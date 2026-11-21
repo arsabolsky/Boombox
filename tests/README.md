@@ -22,23 +22,22 @@ wait a few seconds and try again.
 **Tip:** run `./10-watch.sh` in a second terminal while you run the other steps, to watch
 results and fix scripts appear and change status. Only results that looked bad are saved.
 
-By default the client steps use the sample Linux client
-(`33333333-3333-4333-8333-333333333333`). To use another one:
+**Register first.** The database starts empty, so the client steps need a client of your own:
 
 ```bash
-export CLIENT_ID=22222222-2222-4222-8222-222222222222   # sample Windows client
+./01-register.sh linux                 # or windows
+export CLIENT_ID=<the client_id it printed>
 ```
 
 **A full run:**
 
 1. `./02-poll-queries.sh`: the queries the client should run.
-2. `./08-poll-remediations.sh`: the sample client gets its approved test script. Run it
-   again: `[]`, because each script is sent once.
-3. `./04-results-bad.sh`, wait a minute, then `./05-list-remediations.sh`: a new
+2. `./04-results-bad.sh`, wait about a minute, then `./05-list-remediations.sh`: a new
    `pending_review` fix script.
-4. `./06-approve.sh <its id>`, then `./08-poll-remediations.sh`: the client gets it.
-5. `./09-add-query.sh`, then `./02-poll-queries.sh`: the new `tmp_files` query is in the list.
+3. `./06-approve.sh <its id>`, then `./08-poll-remediations.sh`: the client gets it. Run
+   `./08-poll-remediations.sh` again: `[]`, because each script is sent once.
+4. `./09-add-query.sh`, then `./02-poll-queries.sh`: the new `tmp_files` query is in the list.
 
-Steps 3 and 4 need the AI keys in `.env`. Without them they answer HTTP 503, and each run
-with keys costs a few cents. To start over with fresh sample data:
+`03-results-clean.sh` and `04-results-bad.sh` need the AI keys in `.env`. Without them they answer HTTP 503,
+and each run with keys costs a few cents. To empty the database again:
 `docker compose down -v && docker compose up -d`.

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Step 7 (dashboard): give one client an extra osquery query. It shows up in that
 # client's queries (02-poll-queries.sh) every time, while enabled.
-CLIENT_ID="${CLIENT_ID:-33333333-3333-4333-8333-333333333333}"   # sample Linux client
+CLIENT_ID="${CLIENT_ID:?Register first: run ./01-register.sh, then export CLIENT_ID=<the client_id>}"
 DASHBOARD_API="${DASHBOARD_API:-http://localhost:8000}"
 
 curl -sS -w '\nHTTP %{http_code}\n' -X POST "$DASHBOARD_API/api/v1/client-queries" \

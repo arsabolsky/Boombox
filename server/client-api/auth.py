@@ -6,7 +6,7 @@ for that client. This is the ONE place to change when real authentication exists
 Right now a client registers once (POST /api/v1/clients), gets a client_id back, and
 sends it on every request:
 
-    X-Client-Id: 11111111-1111-4111-8111-111111111111
+    X-Client-Id: a7c55be4-b85b-4c7c-9666-82e863e4ea7f
 
 We look that id up in the database. Unknown ids get a 401. The client's OS and
 hostname come from the database, not from the request.

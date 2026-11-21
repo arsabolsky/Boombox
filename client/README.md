@@ -6,5 +6,5 @@ Runs on every monitored machine (Linux: Kade, Windows: Mateo). It:
 2. Polls for osquery queries, runs them, and sends the rows back.
 3. Polls for approved fix scripts and runs them.
 
-The formats, and sample clients to test with, are in
+The formats, and how to test, are in
 [server/client-api/README.md](../server/client-api/README.md#for-the-clients-kade-mateo).
