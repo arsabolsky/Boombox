@@ -50,7 +50,7 @@ func main() {
 		// Fetch queries
 		queries := getQueries(client, server)
 		results := []QueryResult{}
-		for _, query := range queries.Queries {
+		for _, query := range queries {
 			// Execute the query
 			cmd := exec.Command("osqueryi", "--json", query.SQL)
 			out, err := cmd.Output()
@@ -105,6 +105,10 @@ type RegisterRequest struct {
 	OsVersion string `json:"os_version"`
 }
 
+type RegisterResponse struct {
+	ClientID string `json:"client_id"`
+}
+
 func sendRegisterRequest(client *http.Client, server string) string {
 	registerPath := server + os.Getenv("REGISTER_PATH")
 	name, err := os.Hostname()
@@ -144,7 +148,12 @@ func sendRegisterRequest(client *http.Client, server string) string {
 		fmt.Println("Error reading register response:", err)
 		return ""
 	}
-	return string(respBody)
+	var registerResponse RegisterResponse
+	if err := json.Unmarshal(respBody, &registerResponse); err != nil {
+		fmt.Println("Error unmarshaling register response:", err)
+		return ""
+	}
+	return registerResponse.ClientID
 }
 
 type Results struct {
@@ -209,11 +218,9 @@ func sendCommandResults(client *http.Client, server string, result CommandResult
 	}
 }
 
-type Queries struct {
-	Queries []struct {
-		Name string `json:"name"`
-		SQL  string `json:"sql"`
-	} `json:"queries"`
+type Queries []struct {
+	Name string `json:"name"`
+	SQL  string `json:"sql"`
 }
 
 func getQueries(client *http.Client, server string) Queries {
