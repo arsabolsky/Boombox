@@ -10,21 +10,18 @@ process's parent, its network connections, or the process behind a connection.
 """
 
 import os
-import socket
 import time
 
 import httpx
 
 from schemas import Client, Decision, Finding, QueryResult
+from triage.scope import in_scope
 from usage import record
 
 JEV_URL = "https://api.typesafe.ai/v1/systemone"
 JEV_MODEL = os.getenv("JEV_MODEL", "jev-latest")
 MIN_CONFIDENCE = 0.5  # ignore "suspicious"/"malicious" answers below this
 ROWS_PER_REQUEST = 25  # send rows to Jev in chunks of this size
-
-# This server's own address, as clients see it. Their connections to it are normal.
-SERVER_IP = os.getenv("BOOMBOX_SERVER_IP") or socket.gethostbyname(socket.gethostname())
 
 LABELS = {
     "benign": "Normal system, service or user activity.",
@@ -36,14 +33,13 @@ LABELS = {
 HINTS = (
     "Fields starting with '_' were added by Boombox for context: _parent is the parent "
     "process (name and command line), _connections lists the remote addresses this process "
-    "is connected to, and _process is the process that owns a network connection. "
-    "A connection with pid -1 is an already-closed socket with no process behind it. "
-    f"Connections to the Boombox server at {SERVER_IP}:8080 are the Boombox client itself "
-    "and are normal."
+    "is connected to, and _process is the process that owns a network connection."
 )
 
 
 def decide(client: Client, results: list[QueryResult]) -> Decision:
+    # Drop our own normal traffic (Boombox client, Tailscale) before Jev sees it. See triage/scope.py.
+    results = [QueryResult(name=r.name, rows=[row for row in r.rows if in_scope(r.name, row)]) for r in results]
     context = build_context(results)
     findings = []
     for result in results:

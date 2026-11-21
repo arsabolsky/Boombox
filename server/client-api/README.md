@@ -16,6 +16,7 @@ http://localhost:8080/docs.
 | `schemas.py` | The JSON shapes going in and out. |
 | `ingest/routes.py` | Register, poll for queries, and send results. |
 | `ingest/queries.py` | The default osquery queries for each OS. Edit this to collect something new. |
+| `triage/scope.py` | Rows never sent to Jev: the client's own requests, closed connections, Tailscale. |
 | `triage/decision.py` | Asks Jev whether each row is benign, suspicious or malicious. |
 | `analysis/remediation.py` | Asks OpenAI to write a fix script. |
 | `remediation/save.py` | Saves fix scripts to the database and hands out approved ones. |

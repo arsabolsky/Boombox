@@ -36,6 +36,7 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       JEV_MODEL: ${JEV_MODEL:-jev-latest}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5}
+      BOOMBOX_SERVER_ADDRESSES: ${BOOMBOX_SERVER_ADDRESSES:-}   # other addresses clients use to reach this server (see triage/scope.py)
       OPENAI_REASONING_EFFORT: ${OPENAI_REASONING_EFFORT:-low}   # how hard OpenAI thinks: minimal, low, medium, high
       # Estimated prices for the cost tracking (dollars per million tokens). Check and update.
       JEV_PRICE_INPUT: ${JEV_PRICE_INPUT:-0.042}
