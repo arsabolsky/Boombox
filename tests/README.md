@@ -17,6 +17,10 @@ wait a few seconds and try again.
 | `07-deny.sh <id>` | Deny a fix script | dashboard (8000) |
 | `08-poll-remediations.sh` | Get approved fix scripts to run | client (8080) |
 | `09-add-query.sh` | Give one client an extra query | dashboard (8000) |
+| `10-watch.sh [seconds]` | Keep showing the saved query results and fix scripts, refreshing every 5 seconds | database |
+
+**Tip:** run `./10-watch.sh` in a second terminal while you run the other steps, to watch
+results and fix scripts appear and change status. Only results that looked bad are saved.
 
 By default the client steps use the sample Linux client
 (`33333333-3333-4333-8333-333333333333`). To use another one:
