@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { approve, deny, SEVERITY_RANK, store } from '../store'
+import { approve, deny, saveScript, SEVERITY_RANK, store } from '../store'
 import SummaryCards from '../components/SummaryCards.vue'
 import RemediationList from '../components/RemediationList.vue'
 import RemediationDetail from '../components/RemediationDetail.vue'
@@ -24,11 +24,21 @@ const selected = computed(
   () => store.items.find((r) => r.id === selectedId.value) ?? null,
 )
 
-async function onApprove({ id }: { id: number; script: string }) {
+async function onApprove({ id, script }: { id: number; script: string }) {
+  // Persist any inline edit to the script before approving so the deployed fix
+  // matches what the analyst sees.
+  const current = store.items.find((r) => r.id === id)
+  if (current && script !== (current.proposed_script ?? '')) {
+    const ok = await saveScript(id, script)
+    if (!ok) return
+  }
   await approve(id)
 }
 async function onDeny(id: number) {
   await deny(id)
+}
+async function onSave({ id, script }: { id: number; script: string }) {
+  await saveScript(id, script)
 }
 </script>
 
@@ -63,6 +73,7 @@ async function onDeny(id: number) {
         @close="selectedId = null"
         @approve="onApprove"
         @deny="onDeny"
+        @save="onSave"
       />
     </section>
   </div>

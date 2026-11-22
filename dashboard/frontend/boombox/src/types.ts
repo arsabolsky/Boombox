@@ -12,6 +12,9 @@ export interface Remediation {
   created_at: string | null
   reviewed_at: string | null
   reviewed_by: string | null
+  /** The client this alert came from, joined from the clients table. */
+  client_id: string | null
+  hostname: string | null
 }
 
 /** A monitored client host, with counts used to judge its health. */
