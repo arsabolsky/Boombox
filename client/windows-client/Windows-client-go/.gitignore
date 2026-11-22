@@ -1,0 +1,4 @@
+.env
+client-id.txt
+*.log
+BoomboxClient.exe

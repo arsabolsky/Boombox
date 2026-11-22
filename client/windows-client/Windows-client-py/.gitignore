@@ -1,0 +1,7 @@
+.env
+client-id.txt
+*.log
+__pycache__/
+dist/
+build/
+*.spec
