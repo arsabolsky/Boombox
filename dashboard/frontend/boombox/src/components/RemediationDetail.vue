@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { Remediation } from '../types'
 import { fullTime } from '../time'
 import SeverityBadge from './SeverityBadge.vue'
@@ -14,6 +14,7 @@ const emit = defineEmits<{
   (e: 'close'): void
   (e: 'approve', payload: { id: number; script: string }): void
   (e: 'deny', id: number): void
+  (e: 'save', payload: { id: number; script: string }): void
 }>()
 
 const editing = ref(false)
@@ -28,11 +29,19 @@ watch(
   { immediate: true },
 )
 
+const dirty = computed(() => draftScript.value !== (props.item?.proposed_script ?? ''))
+
 function toggleEdit() {
   editing.value = !editing.value
   if (!editing.value) {
     draftScript.value = props.item?.proposed_script ?? ''
   }
+}
+
+function saveScript() {
+  if (!props.item || !dirty.value) return
+  emit('save', { id: props.item.id, script: draftScript.value })
+  editing.value = false
 }
 
 async function copyScript() {
@@ -63,6 +72,14 @@ async function copyScript() {
         </div>
       </header>
 
+      <section v-if="item.hostname || item.client_id" class="section">
+        <h3 class="section__label">Affected client</h3>
+        <div class="client">
+          <span class="client__host">{{ item.hostname ?? 'Unknown host' }}</span>
+          <span v-if="item.client_id" class="client__id mono">{{ item.client_id }}</span>
+        </div>
+      </section>
+
       <section class="section">
         <h3 class="section__label">LLM analysis</h3>
         <p class="analysis">{{ item.summary || 'No summary provided.' }}</p>
@@ -73,9 +90,19 @@ async function copyScript() {
           <h3 class="section__label">Proposed remediation script</h3>
           <div class="script-actions">
             <button class="link-btn" @click="copyScript">Copy</button>
-            <button class="link-btn" @click="toggleEdit">
-              {{ editing ? 'Cancel edit' : 'Modify' }}
-            </button>
+            <template v-if="item.status === 'pending_review'">
+              <button
+                v-if="editing"
+                class="link-btn"
+                :disabled="busy || !dirty"
+                @click="saveScript"
+              >
+                Save
+              </button>
+              <button class="link-btn" :disabled="busy" @click="toggleEdit">
+                {{ editing ? 'Cancel' : 'Modify' }}
+              </button>
+            </template>
           </div>
         </div>
 
@@ -88,7 +115,7 @@ async function copyScript() {
         />
         <pre v-else class="script"><code>{{ draftScript || '# (no script proposed)' }}</code></pre>
         <p v-if="editing" class="edit-note">
-          The modified script will be sent to the endpoint when you approve.
+          Save to store your changes, or approve to save and deploy the edited script.
         </p>
       </section>
 
@@ -198,8 +225,28 @@ async function copyScript() {
   font-size: 0.8rem;
   padding: 0;
 }
-.link-btn:hover {
+.link-btn:hover:not(:disabled) {
   text-decoration: underline;
+}
+.link-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.client {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.client__host {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+.client__id {
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+.mono {
+  font-family: var(--mono);
 }
 .script,
 .script-edit {

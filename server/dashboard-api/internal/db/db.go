@@ -20,6 +20,10 @@ var ErrNotFound = errors.New("not found")
 // does not reference an existing event.
 var ErrEventNotFound = errors.New("event does not exist")
 
+// ErrNotPending is returned when editing a remediation that has already been
+// reviewed (approved or denied) and is therefore no longer editable.
+var ErrNotPending = errors.New("remediation is not pending review")
+
 // DB wraps a pgx connection pool.
 type DB struct {
 	Pool *pgxpool.Pool
@@ -170,6 +174,10 @@ func (d *DB) ListEndpoints(ctx context.Context) ([]Endpoint, error) {
 // ============================================================
 
 // Remediation mirrors the dashboard-facing fields of a remediation row.
+//
+// ClientID and Hostname identify which monitored client the alert came from.
+// They are LEFT JOINed from the clients table and may be null for a remediation
+// whose client row has gone away.
 type Remediation struct {
 	ID             int64      `json:"id"`
 	EventID        int64      `json:"event_id"`
@@ -181,6 +189,8 @@ type Remediation struct {
 	CreatedAt      *time.Time `json:"created_at"`
 	ReviewedAt     *time.Time `json:"reviewed_at"`
 	ReviewedBy     *string    `json:"reviewed_by"`
+	ClientID       *string    `json:"client_id"`
+	Hostname       *string    `json:"hostname"`
 }
 
 // NewRemediation holds the fields needed to insert a remediation.
@@ -204,18 +214,22 @@ type ReviewResult struct {
 func (d *DB) ListRemediations(ctx context.Context) ([]Remediation, error) {
 	rows, err := d.Pool.Query(ctx, `
 		SELECT
-			id,
-			event_id,
-			title,
-			summary,
-			proposed_script,
-			severity,
-			status,
-			created_at,
-			reviewed_at,
-			reviewed_by
-		FROM remediations
-		ORDER BY created_at DESC;
+			r.id,
+			r.event_id,
+			r.title,
+			r.summary,
+			r.proposed_script,
+			r.severity,
+			r.status,
+			r.created_at,
+			r.reviewed_at,
+			r.reviewed_by,
+			r.client_id::text,
+			c.hostname
+		FROM remediations r
+		LEFT JOIN clients c
+			ON c.client_id = r.client_id
+		ORDER BY r.created_at DESC;
 	`)
 	if err != nil {
 		return nil, err
@@ -243,18 +257,22 @@ func (d *DB) GetRemediation(
 ) (*Remediation, error) {
 	rows, err := d.Pool.Query(ctx, `
 		SELECT
-			id,
-			event_id,
-			title,
-			summary,
-			proposed_script,
-			severity,
-			status,
-			created_at,
-			reviewed_at,
-			reviewed_by
-		FROM remediations
-		WHERE id = $1;
+			r.id,
+			r.event_id,
+			r.title,
+			r.summary,
+			r.proposed_script,
+			r.severity,
+			r.status,
+			r.created_at,
+			r.reviewed_at,
+			r.reviewed_by,
+			r.client_id::text,
+			c.hostname
+		FROM remediations r
+		LEFT JOIN clients c
+			ON c.client_id = r.client_id
+		WHERE r.id = $1;
 	`, id)
 
 	if err != nil {
@@ -275,6 +293,35 @@ func (d *DB) GetRemediation(
 	}
 
 	return &r, nil
+}
+
+// UpdateRemediationScript replaces the proposed_script of a pending remediation
+// and returns the updated row. Only remediations still awaiting review can be
+// edited; an already approved/denied fix is locked.
+func (d *DB) UpdateRemediationScript(
+	ctx context.Context,
+	id int64,
+	script *string,
+) (*Remediation, error) {
+	tag, err := d.Pool.Exec(ctx, `
+		UPDATE remediations
+		SET proposed_script = $1
+		WHERE id = $2
+			AND status = 'pending_review';
+	`, script, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// No row updated: either the id is unknown, or it is no longer pending.
+	if tag.RowsAffected() == 0 {
+		if _, err := d.GetRemediation(ctx, id); err != nil {
+			return nil, err // ErrNotFound when the id is unknown
+		}
+		return nil, ErrNotPending
+	}
+
+	return d.GetRemediation(ctx, id)
 }
 
 // InsertRemediation creates a remediation in pending_review.

@@ -61,7 +61,7 @@ function reviewTime(created: string | null, reviewedAt: string | null) {
 }
 
 function exportCsv() {
-  const header = ['id', 'event_id', 'title', 'severity', 'status', 'created_at', 'reviewed_at', 'reviewed_by']
+  const header = ['id', 'event_id', 'hostname', 'client_id', 'title', 'severity', 'status', 'created_at', 'reviewed_at', 'reviewed_by']
   const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`
   const lines = [
     header.join(','),
@@ -143,7 +143,9 @@ function exportCsv() {
           <span><SeverityBadge :severity="r.severity" /></span>
           <span class="title">
             <span class="title__text">{{ r.title }}</span>
-            <span class="title__sub mono">#{{ r.id }} · event #{{ r.event_id }}</span>
+            <span class="title__sub mono">
+              #{{ r.id }} · event #{{ r.event_id }}<template v-if="r.hostname"> · {{ r.hostname }}</template>
+            </span>
           </span>
           <span class="col-who">{{ r.reviewed_by || '—' }}</span>
           <span class="col-when muted" :title="fullTime(r.reviewed_at)">{{ timeAgo(r.reviewed_at) }}</span>
