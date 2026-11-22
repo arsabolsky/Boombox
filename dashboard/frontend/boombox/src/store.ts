@@ -5,6 +5,7 @@ import {
   denyRemediation,
   listEndpoints,
   listRemediations,
+  saveRemediationScript,
   state as apiState,
 } from './api'
 
@@ -70,6 +71,31 @@ async function review(id: number, action: 'approve' | 'deny') {
 
 export const approve = (id: number) => review(id, 'approve')
 export const deny = (id: number) => review(id, 'deny')
+
+/**
+ * Save an edited remediation script back to the server and update the shared
+ * list so every page reflects the new script. Returns true on success.
+ */
+export async function saveScript(id: number, script: string): Promise<boolean> {
+  store.busy = true
+  store.error = null
+  try {
+    const res = await saveRemediationScript(id, script)
+    const idx = store.items.findIndex((r) => r.id === id)
+    if (idx !== -1) {
+      store.items[idx] = {
+        ...store.items[idx]!,
+        proposed_script: res.proposed_script ?? script,
+      }
+    }
+    return true
+  } catch (e) {
+    store.error = e instanceof Error ? e.message : String(e)
+    return false
+  } finally {
+    store.busy = false
+  }
+}
 
 export const SEVERITY_RANK: Record<string, number> = {
   critical: 0,

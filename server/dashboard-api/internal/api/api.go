@@ -49,6 +49,10 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("POST /api/v1/remediations", s.createRemediation)
 	mux.HandleFunc("GET /api/v1/remediations/{id}", s.getRemediation)
 	mux.HandleFunc(
+		"PUT /api/v1/remediations/{id}/script",
+		s.updateRemediationScript,
+	)
+	mux.HandleFunc(
 		"POST /api/v1/remediations/{id}/approve",
 		s.reviewHandler("approved"),
 	)
@@ -310,6 +314,58 @@ func (s *Server) getRemediation(
 			w,
 			http.StatusNotFound,
 			fmt.Sprintf("Remediation %d does not exist", id),
+		)
+		return
+	}
+
+	if err != nil {
+		internalError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, rem)
+}
+
+type scriptUpdateRequest struct {
+	ProposedScript *string `json:"proposed_script"`
+}
+
+// updateRemediationScript replaces the proposed fix script of a pending
+// remediation. Used by the dashboard's inline script editor.
+func (s *Server) updateRemediationScript(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
+	id, ok := pathID(w, r)
+	if !ok {
+		return
+	}
+
+	var req scriptUpdateRequest
+
+	if !decodeJSON(w, r, &req) {
+		return
+	}
+
+	rem, err := s.DB.UpdateRemediationScript(r.Context(), id, req.ProposedScript)
+
+	if errors.Is(err, db.ErrNotFound) {
+		writeDetail(
+			w,
+			http.StatusNotFound,
+			fmt.Sprintf("Remediation %d does not exist", id),
+		)
+		return
+	}
+
+	if errors.Is(err, db.ErrNotPending) {
+		writeDetail(
+			w,
+			http.StatusConflict,
+			fmt.Sprintf(
+				"Remediation %d has already been reviewed and cannot be edited",
+				id,
+			),
 		)
 		return
 	}
