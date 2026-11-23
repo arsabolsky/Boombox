@@ -21,7 +21,6 @@ export const store = reactive({
   error: null as string | null,
   usingMock: false,
   reviewer: 'awhitby',
-  autoApprove: false,
   lastLoaded: null as Date | null,
 })
 

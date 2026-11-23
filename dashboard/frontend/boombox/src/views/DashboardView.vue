@@ -5,6 +5,9 @@ import { checkHealth } from '../api'
 import { dailyBuckets, duration, median, reviewMs } from '../stats'
 import StackedBarChart, { type Series } from '../components/charts/StackedBarChart.vue'
 import HBarChart from '../components/charts/HBarChart.vue'
+import SeverityBadge from '../components/SeverityBadge.vue'
+import StatusBadge from '../components/StatusBadge.vue'
+import { fullTime, timeAgo } from '../time'
 
 const DAY = 86_400_000
 const range = ref<7 | 14 | 30>(14)
@@ -127,6 +130,25 @@ const analysts = computed(() => {
     .sort((a, b) => b.total - a.total)
 })
 
+// ---- alerts by client ------------------------------------------------------
+const clientName = (r: { hostname: string | null; client_id: string | null }) =>
+  r.hostname ?? (r.client_id ? r.client_id.slice(0, 8) : 'Unknown')
+
+const recentAlerts = computed(() =>
+  [...inRange.value]
+    .sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''))
+    .slice(0, 10),
+)
+
+const clientRows = computed(() => {
+  const counts = new Map<string, number>()
+  for (const r of inRange.value) counts.set(clientName(r), (counts.get(clientName(r)) ?? 0) + 1)
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6)
+    .map(([label, value]) => ({ label, value }))
+})
+
 const pct = (v: number | null) => (v === null ? '—' : `${Math.round(v * 100)}%`)
 </script>
 
@@ -141,9 +163,6 @@ const pct = (v: number | null) => (v === null ? '—' : `${Math.round(v * 100)}%
         <template v-if="!healthChecked">Checking API…</template>
         <template v-else-if="latency !== null">API online · {{ latency }} ms</template>
         <template v-else>API unreachable{{ store.usingMock ? ' · showing demo data' : '' }}</template>
-      </span>
-      <span class="muted">
-        Auto-approve: <strong>{{ store.autoApprove ? 'On' : 'Off' }}</strong>
       </span>
       <span v-if="store.lastLoaded" class="muted">
         Refreshed {{ store.lastLoaded.toLocaleTimeString() }}
@@ -201,6 +220,42 @@ const pct = (v: number | null) => (v === null ? '—' : `${Math.round(v * 100)}%
         <StackedBarChart :data="perDay as unknown as Record<string, unknown>[]" :series="SERIES" label-key="label" />
       </section>
 
+      <section class="panel panel--wide">
+        <header class="panel__head">
+          <h2>Recent alerts</h2>
+          <span class="muted">latest 10 · which client raised each alert</span>
+        </header>
+        <table v-if="recentAlerts.length" class="table">
+          <thead>
+            <tr>
+              <th>Severity</th>
+              <th>Alert</th>
+              <th>Client</th>
+              <th>Status</th>
+              <th class="num">Age</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="r in recentAlerts" :key="r.id">
+              <td><SeverityBadge :severity="r.severity" /></td>
+              <td class="alert-title">{{ r.title }}</td>
+              <td :title="r.client_id ?? ''"><strong>{{ clientName(r) }}</strong></td>
+              <td><StatusBadge :status="r.status" /></td>
+              <td class="num muted" :title="fullTime(r.created_at)">{{ timeAgo(r.created_at) }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <p v-else class="muted">No alerts in this range.</p>
+      </section>
+
+      <section class="panel">
+        <header class="panel__head">
+          <h2>Alerts by client</h2>
+          <span class="muted">top 6</span>
+        </header>
+        <HBarChart :rows="clientRows" empty-text="No alerts in this range." />
+      </section>
+
       <section class="panel">
         <header class="panel__head">
           <h2>Severity mix</h2>
@@ -225,7 +280,7 @@ const pct = (v: number | null) => (v === null ? '—' : `${Math.round(v * 100)}%
         <HBarChart :rows="topAlerts" empty-text="No alerts in this range." />
       </section>
 
-      <section class="panel">
+      <section class="panel panel--wide">
         <header class="panel__head">
           <h2>Analyst activity</h2>
           <span class="muted">reviews in range</span>
@@ -380,6 +435,9 @@ const pct = (v: number | null) => (v === null ? '—' : `${Math.round(v * 100)}%
 .table td {
   padding: 7px 6px;
   border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+}
+.alert-title {
+  font-weight: 600;
 }
 .table tr:last-child td {
   border-bottom: none;

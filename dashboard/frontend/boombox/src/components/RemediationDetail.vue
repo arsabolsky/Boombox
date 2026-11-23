@@ -44,12 +44,43 @@ function saveScript() {
   editing.value = false
 }
 
+const copyState = ref<'idle' | 'copied' | 'failed'>('idle')
+let copyTimer: number | undefined
+
+/**
+ * Copy the script shown in the pane. `navigator.clipboard` only exists in a
+ * secure context (https or localhost), so when the dashboard is opened over
+ * plain http on another host we fall back to a hidden textarea + execCommand.
+ */
 async function copyScript() {
-  try {
-    await navigator.clipboard.writeText(draftScript.value)
-  } catch {
-    /* clipboard may be unavailable; ignore */
+  const text = draftScript.value
+  let ok = false
+  if (navigator.clipboard && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(text)
+      ok = true
+    } catch {
+      ok = false
+    }
   }
+  if (!ok) {
+    const ta = document.createElement('textarea')
+    ta.value = text
+    ta.setAttribute('readonly', '')
+    ta.style.position = 'fixed'
+    ta.style.opacity = '0'
+    document.body.appendChild(ta)
+    ta.select()
+    try {
+      ok = document.execCommand('copy')
+    } catch {
+      ok = false
+    }
+    document.body.removeChild(ta)
+  }
+  copyState.value = ok ? 'copied' : 'failed'
+  window.clearTimeout(copyTimer)
+  copyTimer = window.setTimeout(() => (copyState.value = 'idle'), 1500)
 }
 </script>
 
@@ -89,7 +120,9 @@ async function copyScript() {
         <div class="section__row">
           <h3 class="section__label">Proposed remediation script</h3>
           <div class="script-actions">
-            <button class="link-btn" @click="copyScript">Copy</button>
+            <button class="link-btn" :disabled="!draftScript" @click="copyScript">
+              {{ copyState === 'copied' ? 'Copied!' : copyState === 'failed' ? 'Copy failed' : 'Copy' }}
+            </button>
             <template v-if="item.status === 'pending_review'">
               <button
                 v-if="editing"
