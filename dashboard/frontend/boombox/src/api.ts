@@ -16,6 +16,22 @@ function minutesAgo(min: number): string {
   return new Date(Date.now() - min * 60_000).toISOString()
 }
 
+/**
+ * The clients the mock alerts are attributed to. Matches the hosts in
+ * MOCK_ENDPOINTS so the Review list, Backlog and Clients page line up in demo
+ * mode. [client_id, hostname].
+ */
+const MOCK_CLIENTS: [string, string][] = [
+  ['11111111-1111-4111-8111-111111111111', 'DESKTOP-01'],
+  ['22222222-2222-4222-8222-222222222222', 'FIN-LAPTOP-07'],
+  ['33333333-3333-4333-8333-333333333333', 'web-prod-01'],
+  ['44444444-4444-4444-8444-444444444444', 'dev-ws-03'],
+  ['55555555-5555-4555-8555-555555555555', 'db-prod-01'],
+  ['66666666-6666-4666-8666-666666666666', 'HR-DESKTOP-02'],
+  ['77777777-7777-4777-8777-777777777777', 'build-runner-02'],
+  ['88888888-8888-4888-8888-888888888888', 'MKT-MAC-04'],
+]
+
 const MOCK: Remediation[] = [
   {
     id: 1,
@@ -34,6 +50,8 @@ const MOCK: Remediation[] = [
     created_at: minutesAgo(6),
     reviewed_at: null,
     reviewed_by: null,
+    client_id: MOCK_CLIENTS[0]![0],
+    hostname: MOCK_CLIENTS[0]![1],
   },
   {
     id: 2,
@@ -50,6 +68,8 @@ const MOCK: Remediation[] = [
     created_at: minutesAgo(22),
     reviewed_at: null,
     reviewed_by: null,
+    client_id: MOCK_CLIENTS[1]![0],
+    hostname: MOCK_CLIENTS[1]![1],
   },
   {
     id: 3,
@@ -67,6 +87,8 @@ const MOCK: Remediation[] = [
     created_at: minutesAgo(48),
     reviewed_at: null,
     reviewed_by: null,
+    client_id: MOCK_CLIENTS[2]![0],
+    hostname: MOCK_CLIENTS[2]![1],
   },
   {
     id: 4,
@@ -83,6 +105,8 @@ const MOCK: Remediation[] = [
     created_at: minutesAgo(95),
     reviewed_at: null,
     reviewed_by: null,
+    client_id: MOCK_CLIENTS[3]![0],
+    hostname: MOCK_CLIENTS[3]![1],
   },
   {
     id: 5,
@@ -97,6 +121,8 @@ const MOCK: Remediation[] = [
     created_at: minutesAgo(240),
     reviewed_at: minutesAgo(210),
     reviewed_by: 'awhitby',
+    client_id: MOCK_CLIENTS[6]![0],
+    hostname: MOCK_CLIENTS[6]![1],
   },
   {
     id: 6,
@@ -111,6 +137,8 @@ const MOCK: Remediation[] = [
     created_at: minutesAgo(600),
     reviewed_at: minutesAgo(540),
     reviewed_by: 'awhitby',
+    client_id: MOCK_CLIENTS[4]![0],
+    hostname: MOCK_CLIENTS[4]![1],
   },
 ]
 
@@ -149,6 +177,7 @@ function generateHistory(startId: number): Remediation[] {
     const reviewDelay = 3 + Math.floor(rand() * rand() * 240)
     const severity = pick(severities)
     const approved = rand() < (severity === 'low' ? 0.55 : 0.8)
+    const client = pick(MOCK_CLIENTS)
     out.push({
       id: startId + i,
       event_id: 200 + i,
@@ -160,6 +189,8 @@ function generateHistory(startId: number): Remediation[] {
       created_at: minutesAgo(createdMin),
       reviewed_at: minutesAgo(createdMin - reviewDelay),
       reviewed_by: pick(reviewers),
+      client_id: client[0],
+      hostname: client[1],
     })
   }
   return out
@@ -346,4 +377,21 @@ export function approveRemediation(id: number, reviewedBy: string) {
 
 export function denyRemediation(id: number, reviewedBy: string) {
   return review(id, 'deny', reviewedBy)
+}
+
+/**
+ * Persist an edited remediation script. Returns the updated remediation. In mock
+ * mode this just echoes the new script back so the UI updates locally.
+ */
+export async function saveRemediationScript(
+  id: number,
+  script: string,
+): Promise<Partial<Remediation>> {
+  if (state.usingMock) {
+    return { id, proposed_script: script }
+  }
+  return tryFetch<Remediation>(`${BASE}/remediations/${id}/script`, {
+    method: 'PUT',
+    body: JSON.stringify({ proposed_script: script }),
+  })
 }

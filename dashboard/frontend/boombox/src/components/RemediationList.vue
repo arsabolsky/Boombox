@@ -10,6 +10,11 @@ defineProps<{
 }>()
 
 defineEmits<{ (e: 'select', item: Remediation): void }>()
+
+/** Short form of a client UUID for when no hostname is known. */
+function shortId(id: string | null): string {
+  return id ? id.slice(0, 8) : '—'
+}
 </script>
 
 <template>
@@ -17,6 +22,7 @@ defineEmits<{ (e: 'select', item: Remediation): void }>()
     <div class="list__head">
       <span>Severity</span>
       <span>Alert</span>
+      <span class="col-client">Client</span>
       <span class="col-event">Event</span>
       <span class="col-time">Age</span>
       <span class="col-status">Status</span>
@@ -36,6 +42,12 @@ defineEmits<{ (e: 'select', item: Remediation): void }>()
         <span class="title__text">{{ item.title }}</span>
         <span class="title__sub">{{ item.summary }}</span>
       </span>
+      <span class="col-client">
+        <span v-if="item.hostname || item.client_id" class="client" :title="item.client_id ?? ''">
+          {{ item.hostname ?? shortId(item.client_id) }}
+        </span>
+        <span v-else class="muted">—</span>
+      </span>
       <span class="col-event mono">#{{ item.event_id }}</span>
       <span class="col-time muted">{{ timeAgo(item.created_at) }}</span>
       <span class="col-status"><StatusBadge :status="item.status" /></span>
@@ -53,7 +65,7 @@ defineEmits<{ (e: 'select', item: Remediation): void }>()
 .list__head,
 .row {
   display: grid;
-  grid-template-columns: 110px 1fr 70px 80px 120px;
+  grid-template-columns: 110px 1fr 130px 70px 80px 120px;
   gap: 12px;
   align-items: center;
   padding: 12px 18px;
@@ -109,6 +121,17 @@ defineEmits<{ (e: 'select', item: Remediation): void }>()
   font-size: 0.82rem;
   color: var(--muted);
 }
+.col-client {
+  min-width: 0;
+}
+.client {
+  font-size: 0.82rem;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+}
 .muted {
   color: var(--muted);
   font-size: 0.82rem;
@@ -127,7 +150,7 @@ defineEmits<{ (e: 'select', item: Remediation): void }>()
     grid-template-areas:
       'sev status'
       'title title'
-      'meta meta';
+      'client event';
     row-gap: 6px;
   }
   .row > :nth-child(1) {
@@ -136,8 +159,12 @@ defineEmits<{ (e: 'select', item: Remediation): void }>()
   .title {
     grid-area: title;
   }
+  .col-client {
+    grid-area: client;
+  }
   .col-event {
-    grid-area: meta;
+    grid-area: event;
+    justify-self: end;
   }
   .col-time {
     display: none;
