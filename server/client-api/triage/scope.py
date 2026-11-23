@@ -1,5 +1,8 @@
 """Rows we never send to Jev, because they're our own normal traffic.
 
+  - The Boombox client and osquery (the program it uses to collect data), and their
+    network connections, by process name: boombox-client (Linux), BoomboxClient.exe
+    (Windows), osqueryi / osqueryd.
   - Connections to the Boombox server itself: the client polling us.
   - Connections with pid -1: already closed, with no process behind them to fix.
   - Tailscale: the tailscaled/tailscale processes and connections to Tailscale
@@ -19,6 +22,7 @@ SERVER_ADDRESSES = {socket.gethostbyname(socket.gethostname())} | {
 }
 TAILSCALE_NETWORKS = [ipaddress.ip_network("100.64.0.0/10"), ipaddress.ip_network("fd7a:115c:a1e0::/48")]
 TAILSCALE_PROCESSES = {"tailscaled", "tailscale", "tailscaled.exe", "tailscale.exe", "tailscale-ipn.exe"}
+BOOMBOX_PROCESSES = {"boombox-client", "boomboxclient.exe", "osqueryi", "osqueryi.exe", "osqueryd", "osqueryd.exe"}
 
 
 def is_tailscale_address(address: str) -> bool:
@@ -32,7 +36,7 @@ def is_tailscale_address(address: str) -> bool:
 def in_scope(query_name: str, row: dict) -> bool:
     """False for rows that are our own normal traffic (see the top of this file)."""
     name = str(row.get("name") or row.get("process_name") or "").lower()
-    if name in TAILSCALE_PROCESSES:
+    if name in TAILSCALE_PROCESSES or name in BOOMBOX_PROCESSES:
         return False
     if query_name == "network_connections":
         address = str(row.get("remote_address", ""))
