@@ -19,6 +19,7 @@ See [docs/README.md](docs/README.md) for how the pieces fit together and who is 
 │   ├── dashboard-api/   # Go: what the dashboard talks to (Xander)
 │   └── database/        # PostgreSQL tables (Aiden)
 ├── dashboard/           # Vue website where people approve fixes (Xander)
+├── demo/                # Live demo: a reverse shell that Boombox catches and closes
 └── docs/                # How it all fits together, and the task list
 ```
 

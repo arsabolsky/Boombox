@@ -1,0 +1,31 @@
+# Boombox demo: a "victim" machine with a reverse shell, running a small Boombox client,
+# and an "attacker" machine you control the shell from. Everything stays inside Docker.
+# Start it all with ./start.sh (see README.md).
+name: boombox-demo
+
+services:
+  attacker:
+    build: .
+    hostname: attacker
+    # Idle: you open the listener yourself, interactively:
+    #   docker compose exec attacker nc -lvn 4444
+    command: ["sleep", "infinity"]
+    networks: [boombox]
+
+  victim:
+    build: .
+    hostname: demo-web-01
+    command: ["bash", "/demo/victim.sh"]
+    environment:
+      CLIENT_API: http://client-api:8080/api/v1
+      POLL_SECONDS: "20"
+    volumes:
+      - ./victim.sh:/demo/victim.sh:ro
+      - ./client.py:/demo/client.py:ro
+    depends_on: [attacker]
+    networks: [boombox]
+
+networks:
+  boombox:
+    name: boombox_default   # the main stack's network, so "client-api" resolves
+    external: true
