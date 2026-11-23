@@ -15,8 +15,10 @@ several rows (a process, its children, its network connection). So each finding 
 key, and a finding is skipped if its key already has an open fix script (pending_review
 or approved), or if a fix for it is being written right now:
 
-  - processes and connections: the attack's "family", i.e. the top process you reach by
-    following parent processes up. Everything a reverse shell starts shares one key.
+  - processes and connections: the attack's "family", i.e. the top flagged process you
+    reach by following flagged parents up. Everything a reverse shell starts shares one
+    key, but the walk stops at an unflagged parent (like explorer.exe or sshd), so the
+    program that launched an attack is never treated as part of it.
   - anything else (cron jobs, users, ...): the row itself, without pid and parent.
 
 A different attack gets a different key, so it gets its own fix right away. Once a fix
@@ -38,23 +40,34 @@ _in_progress: set[str] = set()
 _lock = threading.Lock()
 
 
-def family_key(pid: str, processes: dict) -> str:
-    """Follow parents up to the top of the process's family and name the family after it."""
+def family_key(pid: str, processes: dict, flagged: set) -> str:
+    """Follow flagged parents up to the top of the attack and name the family after it."""
     top = processes[pid]
     for _ in range(50):  # a limit, in case bad data lists a process as its own parent
         parent = str(top.get("parent"))
-        if parent not in processes or parent in ("0", "1"):  # stop below PID 1, the first process
-            break
+        if parent not in flagged or parent not in processes or parent in ("0", "1"):
+            break  # stop at a parent that wasn't flagged, e.g. explorer.exe or sshd
         top = processes[parent]
     text = "family: " + str(top.get("cmdline") or top.get("name"))
     return hashlib.sha256(text.encode()).hexdigest()[:16]
 
 
-def fingerprint(finding: Finding, processes: dict) -> str:
+def attack_processes(start: list[str], processes: dict) -> list[dict]:
+    """These processes and all their children, grandchildren, ... (never their parents)."""
+    found, todo = set(), list(start)
+    while todo:
+        pid = todo.pop()
+        if pid not in found:
+            found.add(pid)
+            todo += [child for child, p in processes.items() if str(p.get("parent")) == pid]
+    return [processes[pid] for pid in sorted(found, key=int)]
+
+
+def fingerprint(finding: Finding, processes: dict, flagged: set) -> str:
     """The key for a finding: its process family if it has a known process, else its row."""
     pid = str(finding.row.get("pid", ""))
     if pid in processes:
-        return family_key(pid, processes)
+        return family_key(pid, processes, flagged)
     else:
         row = {k: v for k, v in finding.row.items() if k not in ("pid", "parent")}
         text = json.dumps({"query": finding.query, "row": row}, sort_keys=True)
@@ -64,9 +77,10 @@ def fingerprint(finding: Finding, processes: dict) -> str:
 def write_and_save_fix(client: Client, decision: Decision, results: list[QueryResult]):
     """Runs after /api/v1/results has answered: write the script and save it for review."""
     processes = {str(r["pid"]): r for q in results if q.name == "processes" for r in q.rows if "pid" in r}
+    flagged = {str(f.row.get("pid")) for f in decision.findings if str(f.row.get("pid")) in processes}
     groups: dict[str, list[Finding]] = {}
     for f in decision.findings:
-        groups.setdefault(fingerprint(f, processes), []).append(f)
+        groups.setdefault(fingerprint(f, processes, flagged), []).append(f)
 
     with _lock:
         skip = open_fingerprints(client.client_id) | _in_progress
@@ -80,8 +94,8 @@ def write_and_save_fix(client: Client, decision: Decision, results: list[QueryRe
     try:
         findings = [f for fs in new.values() for f in fs]
         verdict = "malicious" if any(f.verdict == "malicious" for f in findings) else "suspicious"
-        # Every process in the flagged families, so the fix can stop the whole attack.
-        attack = [p for pid, p in processes.items() if family_key(pid, processes) in new]
+        # The attack: flagged processes in the new families, plus everything they started.
+        attack = attack_processes([pid for pid in flagged if family_key(pid, processes, flagged) in new], processes)
         fix = make_script(client, findings, results, attack)
 
         # The database stores each remediation against the event that caused it.

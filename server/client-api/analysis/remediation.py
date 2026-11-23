@@ -35,8 +35,7 @@ findings. A human reviews the script before it runs. It will run as root (Linux,
 or as SYSTEM (Windows, PowerShell).
 
 Rules:
-- Keep the script short and simple: a few clear steps, not a program. 
-- To find and stop processes, use pgrep -f and pkill -f with a pattern from their command line instead of reading /proc yourself.
+- Keep the script short and simple: a few clear steps, not a program.
 - Linux hosts get a bash script, Windows hosts get a PowerShell script.
 - Put each step on its own line, with a short comment above it saying what it does.
 - Only touch what the findings point at. Kill specific PIDs; move (never delete) bad
@@ -45,22 +44,46 @@ Rules:
 - title: a short headline for the dashboard, e.g. "Reverse shell and crypto miner on web-01".
 - explanation: 2-4 sentences for the person approving it: what was found, what the
   script does, and anything to double-check.
-- attack_processes lists every process in the attack (the flagged processes and everything
-  they started). Stop all of them: children first, then parents, and use kill -9 for any
-  that survive the normal signal. The script runs later than this snapshot (after a person
-  approves it), so new child processes may have started since: also kill every current
-  child of these processes when the script runs (pkill -9 -P <pid>), not only the ones listed. Short-lived helpers like sleep stop by themselves once
-  their parent is gone, so don't wait for them or count them as failures.
+- attack_processes lists the processes in the attack: the flagged processes and everything
+  they started. Stop all of them: children first, then parents. Never stop a process that
+  is not in that list, such as the program that launched the attack. The script runs later
+  than this snapshot (after a person approves it), so new child processes may have started
+  since: also stop every current child of these processes when the script runs, not only
+  the ones listed. Short-lived helpers like sleep stop by themselves once their parent is
+  gone, so don't wait for them or count them as failures.
+- At the end, check that every process you meant to stop is really gone. If anything
+  failed, print what and why, and exit 1. Exit 0 only when everything was fixed.
+- The Boombox client, its connection to the Boombox server, and Tailscale (tailscaled,
+  100.x.x.x addresses) are normal. Never touch them.
+"""
+
+# Only the tips for the client's OS are added to the instructions.
+LINUX_TIPS = """\
+Linux tips (bash):
+- Find and stop processes with pgrep -f and pkill -f, using a pattern from their command
+  line, instead of reading /proc yourself. pgrep -f never matches itself, so use it for
+  the final check too. Stop current children with pkill -9 -P <pid>.
 - Interactive shells (like "bash -i") ignore the normal kill signal (SIGTERM). Send
   SIGTERM, wait a second, then SIGKILL (kill -9 / pkill -9 -f) anything still running.
 - Never assign to bash's read-only variables: PPID, UID, EUID, BASHPID, GROUPS. Assigning
   to them stops the script on the spot. Use other names, e.g. proc_ppid.
-- At the end, check that every process you meant to stop is really gone. Use pgrep -f
-  for this, because it never matches itself (grep or awk on ps output finds its own
-  search command). If anything failed, print what and why, and exit 1. Exit 0 only when
-  everything was fixed.
-- The Boombox client, its connection to the Boombox server, and Tailscale (tailscaled,
-  100.x.x.x addresses) are normal. Never touch them.
+"""
+
+WINDOWS_TIPS = """\
+Windows tips (PowerShell):
+- Never use PowerShell's built-in variable names for your own variables or parameters:
+  $PID, $Host, $Error, $Args, $Input, $_ . $PID is read-only, so "$pid = ..." or
+  "param($Pid)" fails. Use other names, e.g. $procId.
+- Find processes and their command lines with Get-CimInstance Win32_Process. Stop them
+  with Stop-Process -Id <id> -Force. Find current children by ParentProcessId.  
+- Paths in single quotes need single backslashes: 'C:\\Users\\Public\\x.exe' and
+  '\\Microsoft\\Windows\\' (never doubled).
+- In double-quoted strings, write "${name}:" rather than "$name:" when a colon follows a
+  variable; "$name:" is a syntax error.
+- Before removing a registry value, save it with reg export. Before disabling a scheduled
+  task, save it with Export-ScheduledTask, then use Disable-ScheduledTask.
+- Don't hide errors with -ErrorAction SilentlyContinue or empty catch { } blocks on the
+  important steps; check the result and report what failed.
 """
 
 
@@ -81,7 +104,8 @@ def make_script(client: Client, findings: list[Finding], results: list[QueryResu
         "snapshot": {r.name: r.rows[:ROWS_PER_QUERY] for r in results},
     }
 
-    fix = ask_openai(json.dumps(details, indent=2), "fix script")
+    instructions = INSTRUCTIONS + "\n" + (LINUX_TIPS if client.os == "linux" else WINDOWS_TIPS)
+    fix = ask_openai(json.dumps(details, indent=2), instructions, "fix script")
     problems = check_script(fix.script, shell)
 
     if problems:
@@ -91,7 +115,7 @@ def make_script(client: Client, findings: list[Finding], results: list[QueryResu
             + "\n\nYour previous script:\n" + fix.script
             + "\n\nAutomatic checks found these problems. Fix all of them:\n- " + "\n- ".join(problems)
         )
-        fix = ask_openai(retry, "fix script (corrected after checks)")
+        fix = ask_openai(retry, instructions, "fix script (corrected after checks)")
         problems = check_script(fix.script, shell)
 
     if problems:
@@ -99,11 +123,11 @@ def make_script(client: Client, findings: list[Finding], results: list[QueryResu
     return fix
 
 
-def ask_openai(text: str, purpose: str) -> Fix:
+def ask_openai(text: str, instructions: str, purpose: str) -> Fix:
     started = time.time()
     response = OpenAI().responses.parse(
         model=OPENAI_MODEL,
-        instructions=INSTRUCTIONS,
+        instructions=instructions,
         input=text,
         reasoning={"effort": REASONING_EFFORT},
         text_format=Fix,
