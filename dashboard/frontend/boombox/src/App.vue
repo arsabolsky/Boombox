@@ -83,14 +83,6 @@ const SUBTITLES: Record<Page, string> = {
           <input v-model="store.reviewer" type="text" spellcheck="false" />
         </label>
 
-        <label class="toggle" :class="{ 'toggle--on': store.autoApprove }">
-          <input v-model="store.autoApprove" type="checkbox" />
-          <span class="toggle__track"><span class="toggle__thumb" /></span>
-          <span class="toggle__label">
-            Auto-approve
-            <small>LLM-as-judge</small>
-          </span>
-        </label>
 
         <button class="refresh" :disabled="store.loading" title="Refresh" @click="load">⟳</button>
       </div>
@@ -101,10 +93,6 @@ const SUBTITLES: Record<Page, string> = {
       <code>/api/v1</code>. Approve/deny are simulated locally.
     </div>
     <div v-if="store.error" class="banner banner--error">{{ store.error }}</div>
-    <div v-if="store.autoApprove" class="banner banner--warn">
-      Auto-approve is on. New remediations rated low-risk by the LLM judge will be
-      deployed without manual review.
-    </div>
 
     <main>
       <ReviewView v-if="page === 'review'" />
@@ -219,54 +207,6 @@ const SUBTITLES: Record<Page, string> = {
 .reviewer input:focus {
   outline: none;
   border-color: var(--accent);
-}
-.toggle {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  cursor: pointer;
-  user-select: none;
-}
-.toggle input {
-  display: none;
-}
-.toggle__track {
-  width: 38px;
-  height: 22px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--border) 80%, transparent);
-  border: 1px solid var(--border);
-  position: relative;
-  transition: background 0.15s ease;
-  flex-shrink: 0;
-}
-.toggle__thumb {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: var(--muted);
-  transition: transform 0.15s ease, background 0.15s ease;
-}
-.toggle--on .toggle__track {
-  background: color-mix(in srgb, var(--status-pending) 55%, transparent);
-}
-.toggle--on .toggle__thumb {
-  transform: translateX(16px);
-  background: #fff;
-}
-.toggle__label {
-  font-size: 0.82rem;
-  font-weight: 500;
-  display: flex;
-  flex-direction: column;
-  line-height: 1.1;
-}
-.toggle__label small {
-  color: var(--muted);
-  font-size: 0.68rem;
 }
 .refresh {
   background: var(--surface);

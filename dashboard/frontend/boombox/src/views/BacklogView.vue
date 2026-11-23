@@ -12,6 +12,7 @@ type Decision = 'all' | 'approved' | 'denied'
 const decision = ref<Decision>('all')
 const severity = ref<string>('all')
 const reviewer = ref<string>('all')
+const client = ref<string>('all')
 const query = ref('')
 const selectedId = ref<number | null>(null)
 
@@ -23,18 +24,29 @@ const reviewers = computed(() =>
   [...new Set(reviewed.value.map((r) => r.reviewed_by).filter(Boolean))].sort() as string[],
 )
 
+/** Display name for a remediation's client: hostname, else a short client_id. */
+const clientLabel = (r: { hostname: string | null; client_id: string | null }) =>
+  r.hostname ?? (r.client_id ? r.client_id.slice(0, 8) : '')
+
+const clients = computed(() =>
+  [...new Set(reviewed.value.map(clientLabel).filter(Boolean))].sort(),
+)
+
 const rows = computed(() => {
   const q = query.value.trim().toLowerCase()
   return reviewed.value
     .filter((r) => decision.value === 'all' || r.status === decision.value)
     .filter((r) => severity.value === 'all' || r.severity === severity.value)
     .filter((r) => reviewer.value === 'all' || r.reviewed_by === reviewer.value)
+    .filter((r) => client.value === 'all' || clientLabel(r) === client.value)
     .filter(
       (r) =>
         !q ||
         r.title.toLowerCase().includes(q) ||
         String(r.event_id).includes(q) ||
-        String(r.id).includes(q),
+        String(r.id).includes(q) ||
+        clientLabel(r).toLowerCase().includes(q) ||
+        (r.client_id ?? '').toLowerCase().includes(q),
     )
     .sort((a, b) => (b.reviewed_at ?? '').localeCompare(a.reviewed_at ?? ''))
 })
@@ -106,11 +118,16 @@ function exportCsv() {
           <option v-for="r in reviewers" :key="r" :value="r">{{ r }}</option>
         </select>
 
+        <select v-model="client" class="control" aria-label="Client">
+          <option value="all">All clients</option>
+          <option v-for="c in clients" :key="c" :value="c">{{ c }}</option>
+        </select>
+
         <input
           v-model="query"
           class="control control--search"
           type="search"
-          placeholder="Search title or ID…"
+          placeholder="Search title, client or ID…"
         />
 
         <button class="control control--btn" :disabled="rows.length === 0" @click="exportCsv">
@@ -125,6 +142,7 @@ function exportCsv() {
           <span>Decision</span>
           <span>Severity</span>
           <span>Alert</span>
+          <span class="col-client">Client</span>
           <span class="col-who">Analyst</span>
           <span class="col-when">Decided</span>
           <span class="col-ttr num">Time to decide</span>
@@ -144,8 +162,12 @@ function exportCsv() {
           <span class="title">
             <span class="title__text">{{ r.title }}</span>
             <span class="title__sub mono">
-              #{{ r.id }} · event #{{ r.event_id }}<template v-if="r.hostname"> · {{ r.hostname }}</template>
+              #{{ r.id }} · event #{{ r.event_id }}
             </span>
+          </span>
+          <span class="col-client" :title="r.client_id ?? ''">
+            <span v-if="clientLabel(r)" class="client">{{ clientLabel(r) }}</span>
+            <span v-else class="muted">—</span>
           </span>
           <span class="col-who">{{ r.reviewed_by || '—' }}</span>
           <span class="col-when muted" :title="fullTime(r.reviewed_at)">{{ timeAgo(r.reviewed_at) }}</span>
@@ -254,7 +276,7 @@ function exportCsv() {
 .table__head,
 .row {
   display: grid;
-  grid-template-columns: 112px 104px 1fr 90px 80px 110px;
+  grid-template-columns: 112px 104px 1fr 130px 90px 80px 110px;
   gap: 12px;
   align-items: center;
   padding: 11px 18px;
@@ -303,6 +325,16 @@ function exportCsv() {
   font-size: 0.74rem;
   color: var(--muted);
 }
+.col-client {
+  min-width: 0;
+}
+.client {
+  display: block;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .mono {
   font-family: var(--mono);
 }
@@ -339,6 +371,7 @@ function exportCsv() {
   .title {
     grid-column: 1 / -1;
   }
+  .col-client,
   .col-who,
   .col-when,
   .col-ttr {
