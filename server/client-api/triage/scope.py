@@ -1,7 +1,8 @@
 """Rows we never send to Jev, because they're our own normal traffic.
 
-  - The Boombox client and osquery (the program it uses to collect data), and their
-    network connections, by process name: boombox-client (Linux), BoomboxClient.exe
+  - The Boombox client and osquery (the program it uses to collect data): their
+    processes, network connections, services and startup entries. Matched by name or by
+    the program's file name in path / cmdline: boombox-client (Linux), BoomboxClient.exe
     (Windows), osqueryi / osqueryd.
   - Connections to the Boombox server itself: the client polling us.
   - Connections with pid -1: already closed, with no process behind them to fix.
@@ -33,10 +34,24 @@ def is_tailscale_address(address: str) -> bool:
     return any(ip in network for network in TAILSCALE_NETWORKS)
 
 
+def program_names(row: dict) -> set[str]:
+    """The names a row goes by: its name, plus the file name of its path and command."""
+    names = {str(row.get("name") or "").lower(), str(row.get("process_name") or "").lower()}
+    for field in ("path", "cmdline", "action"):
+        value = str(row.get(field) or "").strip()
+        if value.startswith('"'):
+            program = value[1:].split('"')[0]  # "C:\\Program Files\\x.exe" --flags
+        elif field == "path":
+            program = value  # a path is one path, even with spaces in it
+        else:
+            program = value.split(" ")[0]  # a command: the program is the first word
+        names.add(program.replace("\\", "/").rsplit("/", 1)[-1].lower())
+    return names - {""}
+
+
 def in_scope(query_name: str, row: dict) -> bool:
     """False for rows that are our own normal traffic (see the top of this file)."""
-    name = str(row.get("name") or row.get("process_name") or "").lower()
-    if name in TAILSCALE_PROCESSES or name in BOOMBOX_PROCESSES:
+    if program_names(row) & (TAILSCALE_PROCESSES | BOOMBOX_PROCESSES):
         return False
     if query_name == "network_connections":
         address = str(row.get("remote_address", ""))
