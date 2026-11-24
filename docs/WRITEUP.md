@@ -18,8 +18,7 @@ how to set it up yourself.
 4. [Design decisions](#4-design-decisions)
 5. [Problems we hit and how we solved them](#5-problems-we-hit-and-how-we-solved-them)
 6. [Setup and usage](#6-setup-and-usage)
-7. [Known limitations and future work](#7-known-limitations-and-future-work)
-8. [External tools and resources](#8-external-tools-and-resources)
+7. [External tools and resources](#7-external-tools-and-resources)
 
 ---
 
@@ -459,34 +458,7 @@ attacker's connection close.
 
 ---
 
-## 7. Known limitations and future work
-
-**Limitations**
-- **Authentication is just the client id.** Anyone who knows a client id can act as that client.
-- **The Linux client registers every time it starts**, so a restart shows up as a new client
-  on the dashboard.
-- **Fixes are sent once with no result report.** If a client crashes before running a fix, it
-  isn't sent again (a still-present attack gets a new fix on the next poll).
-- **Some normal programs are still flagged as "suspicious"** (around 50% confidence); a person
-  has to deny them.
-- **PowerShell fixes are only pattern-checked.** There is no PowerShell in the server container,
-  so syntax errors are only caught if they match a known mistake.
-- **Connections to other Tailscale machines are ignored**, so an attacker on the tailnet
-  wouldn't be flagged by connection alone (the processes still would be).
-- **Dashboard API:** creating a per-client query without `"enabled": true` saves it as disabled.
-
-**Future work** (from our presentation)
-- Network segmentation between the clients and the server.
-- More clients and more operating systems.
-- A pipeline for denied fixes: send the reviewer's reason back to the AI for a better one.
-- Alerts to Discord or PagerDuty when a fix is waiting for review.
-- A local decision model instead of a hosted one.
-
-**Why "Boombox"?** EDR → EDM: event-driven microservices, and electronic dance music.
-
----
-
-## 8. External tools and resources
+## 7. External tools and resources
 
 **Data collection and clients**
 - osquery: https://osquery.io/ and https://osquery.readthedocs.io/ (table schema: https://osquery.io/schema/)
