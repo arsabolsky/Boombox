@@ -386,22 +386,25 @@ The database starts empty. To empty it again: `docker compose down -v`, then
 
 ### Install the Linux client (Kade's)
 
-```bash
-cd client/linux
-go build -o boombox-client .
-cp .env.example .env      # set API_HOST to http://<server>:8080 and OS_VERSION
+For convenience, an install script has been provided that compiles the client, sets configuration variables, and creates, starts, and enables a systemd service for the client:  
 ```
-
-`QUERY_INTERVAL` in `.env` sets how often it polls (10 seconds). To run it as a service, use
-`boombox-client.service`. Two things to know: the unit file expects the program at
-`/user/sbin/boombox-client` (note "user", not "usr"; copy it there or change the path), and
-the client reads `.env` from its working directory, which is `/` for systemd services (put
-`.env` there, or add a `WorkingDirectory=` line to the unit). Then:
-
-```bash
-sudo cp boombox-client.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now boombox-client
+bash client/linux/install.sh # Must run as root/sudo
+```
+To run or install manually:
+```
+cd client/linux
+go build ./...
+cp .env.example .env # Replace API_HOST with your Boombox server address
+./boombox-client # Must be run as root/sudo for most remediations to work
+```
+If desired, you can later set the client up as a systemd service:
+```
+cp boombox-client /usr/local/sbin/
+mkdir /etc/boombox
+cp .env /etc/boombox/boombox-client.env
+cp boombox-client.service /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now boombox-client
 ```
 
 ### Install the Windows client (Mateo's)
