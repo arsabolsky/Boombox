@@ -1,6 +1,6 @@
 # Client
 
-Runs on every monitored machine (Linux: Kade, Windows: Mateo). It:
+Runs on every monitored machine. It:
 
 1. Registers once with the client API and saves its `client_id`.
 2. Polls for osquery queries, runs them, and sends the rows back.

@@ -6,7 +6,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 User=root
-ExecStart=/usr/sbin/boombox-client
+ExecStart=/usr/local/sbin/boombox-client
 EnvironmentFile=/etc/boombox/boombox-client.env
 Restart=on-failure
 RestartSec=5s

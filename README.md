@@ -13,12 +13,14 @@ See [docs/README.md](docs/README.md) for how the pieces fit together and who is 
 
 ```
 .
-├── client/              # Runs on monitored machines (Linux: Kade, Windows: Mateo)
+├── client/              # Runs on monitored machines
+│   ├── linux            # Go
+│   └── windows          # Go and Python implementations
 ├── server/
 │   ├── client-api/      # Python: what clients talk to, plus the AI (Andrew)
-│   ├── dashboard-api/   # Go: what the dashboard talks to (Xander)
-│   └── database/        # PostgreSQL tables (Aiden)
-├── dashboard/           # Vue website where people approve fixes (Xander)
+│   ├── dashboard-api/   # Go: what the dashboard talks to
+│   └── database/        # PostgreSQL tables
+├── dashboard/           # Vue website where people approve fixes
 ├── demo/                # Live demo: a reverse shell that Boombox catches and closes
 └── docs/                # How it all fits together, and the task list
 ```
