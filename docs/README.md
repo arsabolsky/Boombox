@@ -54,11 +54,19 @@ Tailscale. The clients only make outgoing requests, so they need no open ports:
 
 ## Who did what
 
-**Aidan McEwan: database**
+**Aidan McEwan: database and API support**
 - Designed the PostgreSQL schema (`server/database/schema.sql`): clients, events,
   remediations (with their review status), and per-client queries.
-- Wrote the database functions the client API uses (`storage/database.py`) and the
-  first remediations API, which was later folded into the client API.
+- Planned client authentication with Ethan: each client gets one unique id that acts as
+  its token. Aidan built it into the schema as the `clients` table's UUID `client_id`,
+  which every other table is tied to.
+- Wrote the first remediations API in Python (list, create, approve, deny) and the
+  database functions behind it (`storage/database.py`). Both were later folded into the
+  client API.
+- Added client support to both APIs: client registration and events in the Python API,
+  and per-client queries plus approve/deny in Xander's Go dashboard API
+  (`/api/v1/clients/{client_id}/queries`, `/api/v1/client-queries`), with the matching
+  calls in the dashboard website.
 
 **Kade Onines: Linux client**
 - Built the Linux client in Go (`client/linux`): runs the server's osquery queries, sends

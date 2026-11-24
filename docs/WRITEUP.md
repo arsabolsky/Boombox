@@ -178,7 +178,7 @@ The clients only make outgoing requests to the server, so they need no open port
 
 | Person | Role | Main work |
 |---|---|---|
-| Aidan McEwan | Database | PostgreSQL schema and database functions; first remediations API |
+| Aidan McEwan | Database and API support | PostgreSQL schema and database functions; client ids as tokens (planned with Ethan); first remediations API; client registration and per-client queries in the Python API, and per-client queries and approve/deny in the Go dashboard API |
 | Kade Onines | Linux client | Go client with registration, query and remediation loops, systemd service, logging; first task list |
 | Andrew Sabolsky | Client API, and AI pipeline | Repository structure and docs, client API, Jev and OpenAI pipeline, grouping and filtering, automatic script checks, Docker Compose and nginx setup, live demo |
 | Ethan Simon | Infrastructure | Proxmox VMs for the server and both clients, team network access, Docker restart policies, VM CPU fix |
@@ -191,32 +191,47 @@ A more detailed breakdown is in [docs/README.md](README.md#who-did-what).
 
 ## 3. Steps we took
 
-**1. Plan and split the work (early October).** We sketched the data flow (client →
-decision model → remediation model → database → dashboard → back to the client), set up the
-repository with a folder for each part, and split it up: Linux client, Windows client, AI
-models and API, database, dashboard, and infrastructure.
+**1. Plan and split the work (September 23 – October 7).** We picked the AI-powered EDR
+idea over a multi-site datacenter, sketched the data flow (client → decision model →
+remediation model → database → dashboard → back to the client), and split the work: Linux
+client, Windows client, AI models and API, database, dashboard, and infrastructure. On
+October 7 Andrew set up the repository with a folder for each part, and Kade added the
+first task list.
 
-**2. Learn osquery and build the first client loop (October).** Kade built the first osquery
-loop in Go, which became the Linux client.
+**2. Learn osquery and build the first client loop (October 10–15).** Kade built the first
+osquery loop in Go, which became the Linux client.
 
 **3. Build the parts in parallel (November 10–19).**
-- Aidan designed the PostgreSQL schema and a first remediations API.
-- Xander built the dashboard: first a Go API, then the Vue website.
-- Andrew built the client API and the AI pipeline. A larger first version
-  (a message queue, heuristic fallbacks) was cut down to a simple proof of concept: one
-  FastAPI app, Jev for decisions, OpenAI for fixes, no fallbacks.
-- Kade and Mateo built the client loops against the API.
+- **November 10:** Aidan committed the PostgreSQL schema, sample data, and a first
+  remediations API in Python with its database functions.
+- **November 11:** Aidan and Ethan planned client authentication: one unique id per client,
+  used as its token.
+- **November 12:** Kade added the query and remediation loops to the Linux client and set
+  it up as a systemd service.
+- **November 16–18:** Andrew built the client API and the AI pipeline. A larger first
+  version (a message queue, heuristic fallbacks, a separate lab for scoring models) was cut
+  down to a simple proof of concept: one FastAPI app, Jev for decisions, OpenAI for fixes,
+  no fallbacks. He also gave the client developers a working endpoint to build against.
+- **November 17:** Xander built the dashboard: a Go API, then the Vue website and its
+  clients page.
+- **November 18:** Mateo built the first Windows client.
+- **November 19:** Aidan reworked the schema around clients (a `clients` table with a UUID
+  `client_id`, and per-client queries) and added the matching routes to the Python API and
+  to Xander's Go API. Kade connected the Linux client to the API.
 
 **4. Merge everything into one system (November 19–20).** The parts had been built
 separately and didn't fit together yet (see section 5). We picked one folder layout
 (`server/client-api`, `server/dashboard-api`, `server/database`), moved Aidan's database
 code into the client API, ran Xander's Go API side by side with it, and put everything in
-one `compose.yaml`. Clients now register and use a database-issued UUID.
+one `compose.yaml`. Clients now register and use the UUID from Aidan's `clients` table.
+Kade and Mateo (now in Go) updated their clients to register and use the new endpoints.
 
 **5. Deploy to the team's servers (November 20–23).** Ethan set up the Proxmox VMs. We moved
 the dashboard website to port 80 behind nginx, fixed a VM CPU setting that stopped the
-website from building, and made every service restart automatically. Kade's and Mateo's
-clients went live against the real server.
+website from building, and Ethan made every service restart automatically. Kade's and
+Mateo's clients went live against the real server. Xander added each alert's client to the
+dashboard and made fix scripts editable before approval (November 21), then removed
+auto-approve so every fix needs a person (November 23).
 
 **6. Test with a live attack and improve the AI (November 21–23).** We built a demo: a victim
 container with a real (harmless) reverse shell, and an attacker container. Running it again

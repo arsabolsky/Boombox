@@ -15,7 +15,7 @@ before the client runs it.
 
 | Person | Part |
 |---|---|
-| Aidan McEwan | Database (PostgreSQL) |
+| Aidan McEwan | Database (PostgreSQL) and API support (client ids, per-client queries) |
 | Kade Onines | Linux client (Go) |
 | Andrew Sabolsky | Client API, AI pipeline (Jev + OpenAI), Docker setup, live demo |
 | Ethan Simon | Infrastructure (Proxmox VMs, networking, Docker restarts) |
