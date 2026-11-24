@@ -1,4 +1,4 @@
-module boombox/linux-client
+module boombox/boombox-client
 
 go 1.26.8
 
