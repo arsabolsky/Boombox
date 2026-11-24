@@ -4,8 +4,8 @@ REST API that backs the Vue dashboard in `dashboard/frontend/boombox`. Talks to 
 PostgreSQL database defined in `server/database/schema.sql` using
 [pgx](https://github.com/jackc/pgx) with a connection pool.
 
-Routes and JSON shapes match the original FastAPI service (`server/api/app.py`),
-so the frontend works without changes.
+It runs in Docker with the rest of the backend (`docker compose up --build` from the repo
+root) on port 8000. The website reaches it through nginx at `/api`.
 
 ## Layout
 
@@ -48,6 +48,11 @@ cd ../../dashboard/frontend/boombox && npm run dev
 | POST   | `/api/v1/remediations`                 | `{event_id, title, severity, summary?, proposed_script?}` |
 | POST   | `/api/v1/remediations/{id}/approve`    | `{reviewed_by}`                       |
 | POST   | `/api/v1/remediations/{id}/deny`       | `{reviewed_by}`                       |
+| PUT    | `/api/v1/remediations/{id}/script`     | `{proposed_script}` (only while pending review; otherwise 409) |
+| GET    | `/api/v1/endpoints`                    | — (every client, with event and pending-fix counts) |
+| GET    | `/api/v1/clients/{client_id}/queries`  | — (that client's extra queries)       |
+| POST   | `/api/v1/client-queries`               | `{client_id, query_name, query_configuration, enabled}` (send `"enabled": true`; it defaults to false) |
+| PUT    | `/api/v1/client-queries/{id}`          | `{query_configuration, enabled}`      |
 
-Errors use FastAPI's shape: `{"detail": "..."}` (404 for a missing remediation or
+Errors use the shape `{"detail": "..."}` (404 for a missing remediation or
 event, 422 for bad input).

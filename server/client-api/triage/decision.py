@@ -10,13 +10,11 @@ process's parent, its network connections, or the process behind a connection.
 """
 
 import os
-import time
 
 import httpx
 
 from schemas import Client, Decision, Finding, QueryResult
 from triage.scope import in_scope
-from usage import record
 
 JEV_URL = "https://api.typesafe.ai/v1/systemone"
 JEV_MODEL = os.getenv("JEV_MODEL", "jev-latest")
@@ -117,7 +115,6 @@ def ask_jev(client: Client, query_name: str, rows: list[dict]) -> list[tuple[str
         "state": {"os": client.os, "query": query_name, "rows": [{"_row": i, **row} for i, row in enumerate(rows)]},
         "questions": questions,
     }
-    started = time.time()
     response = httpx.post(
         JEV_URL,
         json=body,
@@ -126,8 +123,5 @@ def ask_jev(client: Client, query_name: str, rows: list[dict]) -> list[tuple[str
     )
     response.raise_for_status()
     body = response.json()
-    tokens = body.get("usage", {})
-    record("jev", body.get("model", JEV_MODEL), f"decision ({query_name}, {len(rows)} rows)",
-           started, tokens.get("input_tokens", 0), tokens.get("output_tokens", 0))
     answers = body["answers"]
     return [(answers[f"row_{i}"]["choice"], answers[f"row_{i}"]["confidence"]) for i in range(len(rows))]

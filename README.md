@@ -15,12 +15,12 @@ before the client runs it.
 
 | Person | Part |
 |---|---|
-| Andrew Sabolsky | Client API, AI pipeline (Jev + OpenAI), Docker setup, tests, live demo |
+| Andrew Sabolsky | Client API, AI pipeline (Jev + OpenAI), Docker setup, live demo |
 | Kade Onines | Linux client (Go) |
 | Mateo Vallejo | Windows client (Go, earlier Python) |
-| Aiden McEwan | Database (PostgreSQL) |
+| Aidan McEwan | Database (PostgreSQL) |
 | Xander Whitby | Dashboard API (Go) and website (Vue) |
-| Ethan | Infrastructure (Proxmox VMs, networking, Docker restarts) |
+| Ethan Simon | Infrastructure (Proxmox VMs, networking, Docker restarts) |
 
 ## Repository layout
 
@@ -30,10 +30,10 @@ before the client runs it.
 ├── server/
 │   ├── client-api/      # Python: what clients talk to, plus the AI (Andrew)
 │   ├── dashboard-api/   # Go: what the dashboard talks to (Xander)
-│   └── database/        # PostgreSQL tables (Aiden)
+│   └── database/        # PostgreSQL tables (Aidan)
 ├── dashboard/           # Vue website where people approve fixes (Xander)
 ├── demo/                # Live demo: a reverse shell that Boombox catches and closes
-└── docs/                # How it all fits together, and the task list
+└── docs/                # The write-up, how it all fits together, and diagrams
 ```
 
 ## Getting started

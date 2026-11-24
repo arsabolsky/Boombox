@@ -21,9 +21,8 @@ http://localhost:8080/docs.
 | `analysis/remediation.py` | Asks OpenAI to write a fix script. |
 | `remediation/save.py` | Saves fix scripts to the database and hands out approved ones. |
 | `remediation/routes.py` | Poll for approved fix scripts. |
-| `analysis/checks.py` | Checks each fix script (bash -n, ShellCheck, read-only variables) before saving it. |
-| `usage.py` | Records the time, tokens and estimated cost of every AI call. |
-| `storage/database.py` | All the SQL (Aiden). |
+| `analysis/checks.py` | Checks each fix script before saving it: bash (bash -n, ShellCheck, read-only variables) and PowerShell (built-in variables, common mistakes). |
+| `storage/database.py` | All the SQL (Aidan). |
 
 ## For the clients (Kade, Mateo)
 
@@ -54,8 +53,9 @@ An unknown id gets a 401.
 
 ### 2. Then repeat forever
 
-There are two things to poll. They can run in the same loop or in separate ones, every few
-minutes (your choice; 5 minutes is a good start). Both need the `X-Client-Id` header.
+There are two things to poll. They can run in the same loop or in separate ones. Our
+clients poll every 10 seconds by default (set in each client's `.env`). Every results
+upload is a Jev call, so polling less often costs less. Both need the `X-Client-Id` header.
 
 | Endpoint | Gives you | Then |
 |---|---|---|
@@ -118,20 +118,29 @@ so save each one to a file and run the file:
 marks it executed, so save it and run it right away. If your client crashes before running it, the
 script is not sent again.
 
-### Testing
+### Trying it by hand
 
-The database starts empty, so register a client first. The `tests/` folder at the repo root
-has a `curl` script for every step (see `tests/README.md`):
+The database starts empty, so register a client first. The easiest way is the browser page
+at http://localhost:8080/docs, where every endpoint has a "Try it out" button. With `curl`:
 
-1. Register, and save the `client_id`.
-2. Poll for queries.
-3. Send bad results: a fix script is written about a minute later.
-4. Approve it on the dashboard (http://localhost) or with `tests/06-approve.sh <id>`.
-5. Poll for remediations: you get the script, once.
+```bash
+# 1. Register and save the client_id
+curl -s -X POST localhost:8080/api/v1/clients -H 'Content-Type: application/json' \
+  -d '{"hostname": "test-box", "os": "linux", "os_version": "Ubuntu 24.04 LTS"}'
+
+# 2. Poll for queries
+curl -s localhost:8080/api/v1/poll/queries -H "X-Client-Id: <client_id>"
+
+# 3. Send results (see the format above). Bad rows get a fix script about a minute later.
+curl -s -X POST localhost:8080/api/v1/results -H "X-Client-Id: <client_id>" \
+  -H 'Content-Type: application/json' -d @results.json
+
+# 4. Approve the fix on the dashboard (http://localhost), then poll for it (sent once)
+curl -s localhost:8080/api/v1/poll/remediations -H "X-Client-Id: <client_id>"
+```
 
 `POST /api/v1/results` needs the AI keys on the server. Without them it answers 503, which
-still tells you your request was in the right format (a wrong format gets a 422). Without
-keys no fix scripts get written, so there's nothing to poll for in step 5.
+still tells you your request was in the right format (a wrong format gets a 422).
 
 ## Good to know
 
@@ -142,8 +151,6 @@ keys no fix scripts get written, so there's nothing to poll for in step 5.
   or approved, it doesn't get another one. A different attack gets its own fix right away.
   Once a fix is denied or sent to the client, anything still there gets a new fix.
   (`remediation/save.py`)
-- **Costs.** Every AI call prints an `[ai]` line (time, tokens, estimated cost) in the
-  client API log. `tests/11-costs.sh` shows the totals.
 - **Fix scripts run as whatever user the client runs as.** Only approved scripts are handed out.
 - **To change the AI:** `triage/decision.py` and `analysis/remediation.py` each have one
   function (`decide` and `make_script`). Change what's inside; keep the inputs and outputs.

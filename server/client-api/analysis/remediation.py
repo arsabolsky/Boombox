@@ -14,14 +14,12 @@ person approves or denies it on the dashboard, and only then does the client run
 
 import json
 import os
-import time
 
 from openai import OpenAI
 from pydantic import BaseModel
 
 from analysis.checks import check_script
 from schemas import Client, Finding, QueryResult
-from usage import record
 
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-5")
 REASONING_EFFORT = os.getenv("OPENAI_REASONING_EFFORT", "low")  # minimal, low, medium or high
@@ -105,7 +103,7 @@ def make_script(client: Client, findings: list[Finding], results: list[QueryResu
     }
 
     instructions = INSTRUCTIONS + "\n" + (LINUX_TIPS if client.os == "linux" else WINDOWS_TIPS)
-    fix = ask_openai(json.dumps(details, indent=2), instructions, "fix script")
+    fix = ask_openai(json.dumps(details, indent=2), instructions)
     problems = check_script(fix.script, shell)
 
     if problems:
@@ -115,7 +113,7 @@ def make_script(client: Client, findings: list[Finding], results: list[QueryResu
             + "\n\nYour previous script:\n" + fix.script
             + "\n\nAutomatic checks found these problems. Fix all of them:\n- " + "\n- ".join(problems)
         )
-        fix = ask_openai(retry, instructions, "fix script (corrected after checks)")
+        fix = ask_openai(retry, instructions)
         problems = check_script(fix.script, shell)
 
     if problems:
@@ -123,8 +121,7 @@ def make_script(client: Client, findings: list[Finding], results: list[QueryResu
     return fix
 
 
-def ask_openai(text: str, instructions: str, purpose: str) -> Fix:
-    started = time.time()
+def ask_openai(text: str, instructions: str) -> Fix:
     response = OpenAI().responses.parse(
         model=OPENAI_MODEL,
         instructions=instructions,
@@ -132,5 +129,4 @@ def ask_openai(text: str, instructions: str, purpose: str) -> Fix:
         reasoning={"effort": REASONING_EFFORT},
         text_format=Fix,
     )
-    record("openai", OPENAI_MODEL, purpose, started, response.usage.input_tokens, response.usage.output_tokens)
     return response.output_parsed

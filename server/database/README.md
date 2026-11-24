@@ -1,6 +1,6 @@
 # Database
 
-PostgreSQL schema for the Boombox project (Aiden). Both the client API and the dashboard API
+PostgreSQL schema for the Boombox project (Aidan). Both the client API and the dashboard API
 read and write it.
 
 ## Setup
@@ -34,7 +34,7 @@ SELECT * FROM remediations;
 SELECT * FROM client_queries;
 ```
 
-Or run `tests/10-watch.sh`, which keeps showing the events and fix scripts.
+From the repo root: `docker compose exec database psql -U boombox -d boombox`.
 
 ## Relationships
 
