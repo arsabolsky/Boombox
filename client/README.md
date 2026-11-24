@@ -9,7 +9,7 @@ Runs on every monitored machine. It:
 | Folder | Client | Who |
 |---|---|---|
 | [`linux/`](linux/README.md) | Linux client in Go, runs as a systemd service | Kade |
-| [`windows-client/`](windows-client/README.md) | Windows client in Go (current) and Python (earlier), runs as a Windows service | Mateo |
+| [`windows-client/`](windows-client/README.md) | Windows client in Go, runs as a Windows service | Mateo |
 
 The request formats, and how to test without a real client, are in
 [server/client-api/README.md](../server/client-api/README.md#for-the-clients-kade-mateo).

@@ -15,12 +15,12 @@ before the client runs it.
 
 | Person | Part |
 |---|---|
-| Andrew Sabolsky | Client API, AI pipeline (Jev + OpenAI), Docker setup, live demo |
-| Kade Onines | Linux client (Go) |
-| Mateo Vallejo | Windows client (Go, earlier Python) |
 | Aidan McEwan | Database (PostgreSQL) |
-| Xander Whitby | Dashboard API (Go) and website (Vue) |
+| Kade Onines | Linux client (Go) |
+| Andrew Sabolsky | Client API, AI pipeline (Jev + OpenAI), Docker setup, live demo |
 | Ethan Simon | Infrastructure (Proxmox VMs, networking, Docker restarts) |
+| Mateo Vallejo | Windows client (Go) |
+| Xander Whitby | Dashboard API (Go) and website (Vue) |
 
 ## Repository layout
 

@@ -1,11 +1,10 @@
 # Windows Client
 
-Runs on every monitored Windows host (Mateo). There are two versions:
+Runs on every monitored Windows host (Mateo). The client is in
+[`Windows-client-go/`](Windows-client-go/README.md): a Go program, built as
+`BoomboxClient.exe` and installed as a Windows service with NSSM. It registers, polls for
+queries (`poll/queries`), sends results (`results`), and polls for approved fix scripts
+(`poll/remediations`), which it runs as PowerShell.
 
-| Folder | Status |
-|---|---|
-| [`Windows-client-go/`](Windows-client-go/README.md) | **Current.** Go, built as `BoomboxClient.exe`, installed as a Windows service with NSSM. Uses the current client API (registration, `poll/queries`, `results`, `poll/remediations`). |
-| `Windows-client-py/` | Earlier Python version (`agent.py`), written against an older version of the API. Kept for reference. |
-
-Both need osquery installed (https://osquery.io/downloads). Build and install steps are in
+It needs osquery installed (https://osquery.io/downloads). Build and install steps are in
 [`Windows-client-go/README.md`](Windows-client-go/README.md).

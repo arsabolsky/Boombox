@@ -60,7 +60,7 @@ client API hands approved ones to the client.
 | Part | What it does | Folder |
 |---|---|---|
 | Linux client | Go program that runs osquery queries and approved bash scripts; systemd service | `client/linux` |
-| Windows client | Go program (an earlier Python version is kept) that runs osquery queries and approved PowerShell scripts; Windows service via NSSM | `client/windows-client` |
+| Windows client | Go program that runs osquery queries and approved PowerShell scripts; Windows service via NSSM | `client/windows-client` |
 | Client API | Python (FastAPI). Registers clients, hands out queries and approved scripts, receives results, runs the AI pipeline | `server/client-api` |
 | Database | PostgreSQL tables shared by both APIs | `server/database` |
 | Dashboard API | Go. Lists fix scripts and clients; approve, deny, edit; per-client queries | `server/dashboard-api` |
@@ -178,12 +178,12 @@ The clients only make outgoing requests to the server, so they need no open port
 
 | Person | Role | Main work |
 |---|---|---|
-| Andrew Sabolsky | Client API, and AI pipeline | Repository structure and docs, client API, Jev and OpenAI pipeline, grouping and filtering, automatic script checks, Docker Compose and nginx setup, live demo |
-| Kade Onines | Linux client | Go client with registration, query and remediation loops, systemd service, logging; first task list |
-| Mateo Vallejo | Windows client | Python client, then a faster Go client with retries and backoff; NSSM service and install scripts |
 | Aidan McEwan | Database | PostgreSQL schema and database functions; first remediations API |
-| Xander Whitby | Dashboard | Go dashboard API; Vue website with review queue, backlog, analytics, clients page, script editing |
+| Kade Onines | Linux client | Go client with registration, query and remediation loops, systemd service, logging; first task list |
+| Andrew Sabolsky | Client API, and AI pipeline | Repository structure and docs, client API, Jev and OpenAI pipeline, grouping and filtering, automatic script checks, Docker Compose and nginx setup, live demo |
 | Ethan Simon | Infrastructure | Proxmox VMs for the server and both clients, team network access, Docker restart policies, VM CPU fix |
+| Mateo Vallejo | Windows client | Go client with registration, query and remediation polling, retries and backoff; NSSM service and install scripts |
+| Xander Whitby | Dashboard | Go dashboard API; Vue website with review queue, backlog, analytics, clients page, script editing |
 
 A more detailed breakdown is in [docs/README.md](README.md#who-did-what).
 

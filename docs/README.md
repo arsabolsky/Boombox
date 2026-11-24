@@ -37,7 +37,7 @@ The dashboard can also give one client extra queries, which it gets every time i
 | Dashboard website | Vue | 80 | `dashboard/` | Xander |
 | Database | PostgreSQL | 5432 | `server/database` | Aidan |
 | Linux client | Go | | `client/linux` | Kade |
-| Windows client | Go (and an earlier Python version) | | `client/windows-client` | Mateo |
+| Windows client | Go | | `client/windows-client` | Mateo |
 | Infrastructure | Proxmox, Docker, Tailscale | | | Ethan Simon |
 | Live demo | Docker | | `demo/` | Andrew |
 
@@ -54,6 +54,18 @@ Tailscale. The clients only make outgoing requests, so they need no open ports:
 
 ## Who did what
 
+**Aidan McEwan: database**
+- Designed the PostgreSQL schema (`server/database/schema.sql`): clients, events,
+  remediations (with their review status), and per-client queries.
+- Wrote the database functions the client API uses (`storage/database.py`) and the
+  first remediations API, which was later folded into the client API.
+
+**Kade Onines: Linux client**
+- Built the Linux client in Go (`client/linux`): runs the server's osquery queries, sends
+  the results, registers when it starts, and runs approved fix scripts.
+- Set it up as a systemd service with restart on failure, and added detailed logging.
+- Wrote the first project task list.
+
 **Andrew Sabolsky: client API, AI pipeline**
 - Set up the repository structure, the documentation, and the task split.
 - Built the client API (`server/client-api`): registration, polling for queries and fix
@@ -65,32 +77,19 @@ Tailscale. The clients only make outgoing requests, so they need no open ports:
   made the dashboard website survive restarts (nginx).
 - Built the live demo (`demo/`).
 
-**Kade Onines: Linux client**
-- Built the Linux client in Go (`client/linux`): runs the server's osquery queries, sends
-  the results, registers when it starts, and runs approved fix scripts.
-- Set it up as a systemd service with restart on failure, and added detailed logging.
-- Wrote the first project task list.
-
-**Mateo Vallejo: Windows client**
-- Built the Windows client, first in Python (`Windows-client-py`), then in Go for speed
-  (`Windows-client-go`): registration, query and remediation polling with retries and
-  backoff, and running approved fixes as PowerShell.
-- Packaged it as a Windows service with NSSM, with install and uninstall scripts that lock
-  down its folder to administrators.
-
-**Aidan McEwan: database**
-- Designed the PostgreSQL schema (`server/database/schema.sql`): clients, events,
-  remediations (with their review status), and per-client queries.
-- Wrote the database functions the client API uses (`storage/database.py`) and the
-  first remediations API, which was later folded into the client API.
-
-**Xander Whitby: dashboard**
-- Built the dashboard API in Go (`server/dashboard-api`) on the shared database.
-- Built the Vue dashboard website: review queue, backlog, analytics dashboard, and clients
-  page; approve, deny, and edit fix scripts before they run; client columns everywhere.
-
 **Ethan Simon: infrastructure**
 - Set up the Proxmox virtual machines for the server and both clients, and network access
   for the team.
 - Made every Docker service restart automatically (`restart: unless-stopped`).
 - Fixed the server VM's CPU setting so the dashboard could build there (see the write-up).
+
+**Mateo Vallejo: Windows client**
+- Built the Windows client in Go (`Windows-client-go`): registration, query and
+  remediation polling with retries and backoff, and running approved fixes as PowerShell.
+- Packaged it as a Windows service with NSSM, with install and uninstall scripts that lock
+  down its folder to administrators.
+
+**Xander Whitby: dashboard**
+- Built the dashboard API in Go (`server/dashboard-api`) on the shared database.
+- Built the Vue dashboard website: review queue, backlog, analytics dashboard, and clients
+  page; approve, deny, and edit fix scripts before they run; client columns everywhere.
