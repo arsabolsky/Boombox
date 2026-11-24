@@ -7,7 +7,20 @@ server. A decision model (TypeSafe Jev) flags anything suspicious, a remediation
 (OpenAI) writes a script to fix it, and a person approves the script on the dashboard
 before the client runs it.
 
-See [docs/README.md](docs/README.md) for how the pieces fit together and who is working on what.
+- [docs/WRITEUP.md](docs/WRITEUP.md): the project write-up: steps we took, design
+  decisions, problems and how we solved them, setup, and references.
+- [docs/README.md](docs/README.md): how the pieces fit together, and who did what.
+
+## Team
+
+| Person | Part |
+|---|---|
+| Andrew Sabolsky | Client API, AI pipeline (Jev + OpenAI), Docker setup, tests, live demo |
+| Kade Onines | Linux client (Go) |
+| Mateo Vallejo | Windows client (Go, earlier Python) |
+| Aiden McEwan | Database (PostgreSQL) |
+| Xander Whitby | Dashboard API (Go) and website (Vue) |
+| Ethan | Infrastructure (Proxmox VMs, networking, Docker restarts) |
 
 ## Repository layout
 
